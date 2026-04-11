@@ -1,5 +1,8 @@
 # AgentNetwork_Social
 
+## 语言
+用中文和用户对话。所有输出、问题、文档都用中文。
+
 ## Skill routing
 
 When the user's request matches an available skill, ALWAYS invoke it using the Skill
