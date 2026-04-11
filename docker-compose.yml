@@ -1,0 +1,14 @@
+services:
+  agentnetwork:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - agentnetwork-data:/data
+    environment:
+      - DB_PATH=/data/agentnetwork.db
+      - PORT=3000
+    restart: unless-stopped
+
+volumes:
+  agentnetwork-data:
