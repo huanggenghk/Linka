@@ -29,13 +29,14 @@ export default function AttendeePanel() {
   return (
     <div className="match-container">
       <div className="match-request">
-        <div className="match-avatar match-avatar--user">你</div>
         <div className="match-bubble match-bubble--user">
-          帮我找到现场潜在的技术合伙人
+          我要找技术合伙人，可以先找谁聊聊？
         </div>
+        <div className="match-avatar match-avatar--user">你</div>
       </div>
 
       <div className="match-response">
+        <div className="match-avatar match-avatar--ai">AI</div>
         <div className="match-response-content">
           <div className="match-bubble match-bubble--ai">
             为你从 47 位参与者中筛选出 3 位最匹配的技术合伙人：
@@ -60,7 +61,6 @@ export default function AttendeePanel() {
             ))}
           </div>
         </div>
-        <div className="match-avatar match-avatar--ai">AI</div>
       </div>
     </div>
   )

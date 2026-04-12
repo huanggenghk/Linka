@@ -1,69 +1,116 @@
 import { useState, useEffect } from 'react'
 
-const TICKER_DATA = [
+const ROW1 = [
   { name: 'Kira', org: 'Moonshot AI', focus: '关注多模态落地，寻找产品端合作伙伴' },
   { name: 'Vincent', org: '红杉中国', focus: '关注AI Infra赛道，寻找种子轮项目' },
   { name: '0xNova', org: '字节跳动', focus: '关注端侧推理优化，寻找算法方向交流' },
   { name: 'Mia', org: '智谱AI', focus: '关注Agent框架设计，寻找开源社区贡献者' },
+]
+
+const ROW2 = [
   { name: 'hyperZ', org: '阿里云', focus: '关注Serverless AI，寻找企业级落地场景' },
   { name: 'Ethan', org: '真格基金', focus: '关注开发者工具，寻找技术型创始人' },
   { name: 'Coco', org: '小红书', focus: '关注推荐系统优化，寻找算法团队交流' },
   { name: 'Rex', org: 'DeepSeek', focus: '关注大模型训练效率，寻找infra方向合作' },
-  { name: 'Yuki', org: '蚂蚁集团', focus: '关注隐私计算，寻找跨机构数据合作' },
-  { name: 'Neo', org: '独立开发者', focus: '关注AI Native应用，寻找产品共创伙伴' },
 ]
 
-export default function Hero() {
-  const [stats, setStats] = useState<{ events: number; agents: number } | null>(null)
+const ROW3 = [
+  { name: 'Yuki', org: '蚂蚁集团', focus: '关注隐私计算，寻找跨机构数据合作' },
+  { name: 'Neo', org: '独立开发者', focus: '关注AI Native应用，寻找产品共创伙伴' },
+  { name: 'Luna', org: '腾讯', focus: '关注大模型安全对齐，寻找红队测试合作' },
+  { name: 'Zack', org: '光速光合', focus: '关注AI+教育赛道，寻找早期团队' },
+]
 
-  useEffect(() => {
-    fetch('/api/stats')
-      .then((r) => r.json())
-      .then(setStats)
-      .catch(() => {})
-  }, [])
+const MCP_COMMAND = `npx @anthropic-ai/sdk mcp add linka --transport sse https://linka.zone/mcp`
+
+export default function Hero() {
+  const [stats] = useState({ events: 235, agents: 5324 })
+  const [copied, setCopied] = useState(false)
+
+  const handleJoin = () => {
+    navigator.clipboard.writeText(MCP_COMMAND).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 3000)
+    })
+  }
 
   return (
     <section className="hero">
       <div className="hero-brand">LINKA</div>
       <h1 className="hero-slogan">让每场活动，都变成人脉引擎</h1>
       <p className="hero-subtitle">
-        AI 帮你发现现场最值得认识的人。无需下载 App，和你的 AI 助手说一句话就能加入。
+        加入 Linka，让 Agent 在活动现场链接潜在人脉
       </p>
-      <a className="hero-cta" href="#showcase">
-        了解如何接入
-        <svg viewBox="0 0 16 16" fill="none">
-          <path d="M6 3L11 8L6 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      </a>
-      <p className="hero-helper">支持 Claude Desktop / 飞书 aily / QClaw 等 MCP 客户端</p>
-
-      {stats && (
-        <div className="hero-stats">
-          <span className="hero-stat-line">
-            <span className="pulse-dot" />
-            {stats.events} 场活动正在运行
-          </span>
-          <span className="hero-stat-line">
-            <span className="pulse-dot" />
-            {stats.agents} 个 Agent 已接入
-          </span>
+      <div className="hero-panel">
+        <div className="hero-panel-header">
+          <div className="hero-panel-stats">
+            {stats && (
+              <>
+                <span className="hero-stat-line">
+                  <span className="pulse-dot" />
+                  {stats.events} 场活动
+                </span>
+                <span className="hero-stat-line">
+                  <span className="pulse-dot" />
+                  {stats.agents} 个 Agent
+                </span>
+              </>
+            )}
+          </div>
+          <button className="hero-join-btn" onClick={handleJoin}>
+            {copied ? '✓ 已复制' : '加入'}
+          </button>
         </div>
-      )}
 
-      <div className="hero-ticker">
-        <div className="hero-ticker-track">
-          {[...TICKER_DATA, ...TICKER_DATA].map((item, i) => (
-            <span className="hero-ticker-card" key={i}>
-              <span className="hero-ticker-name">{item.name}</span>
-              <span className="hero-ticker-sep">·</span>
-              {item.org}
-              <span className="hero-ticker-sep">·</span>
-              {item.focus}
-            </span>
-          ))}
+        <div className="hero-ticker-area">
+          <div className="hero-ticker">
+            <div className="hero-ticker-track hero-ticker-track--left">
+              {[...ROW1, ...ROW1].map((item, i) => (
+                <span className="hero-ticker-card" key={i}>
+                  <span className="hero-ticker-name">{item.name}</span>
+                  <span className="hero-ticker-sep">·</span>
+                  {item.org}
+                  <span className="hero-ticker-sep">·</span>
+                  {item.focus}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="hero-ticker">
+            <div className="hero-ticker-track hero-ticker-track--right">
+              {[...ROW2, ...ROW2].map((item, i) => (
+                <span className="hero-ticker-card" key={i}>
+                  <span className="hero-ticker-name">{item.name}</span>
+                  <span className="hero-ticker-sep">·</span>
+                  {item.org}
+                  <span className="hero-ticker-sep">·</span>
+                  {item.focus}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="hero-ticker">
+            <div className="hero-ticker-track hero-ticker-track--left hero-ticker-track--slow">
+              {[...ROW3, ...ROW3].map((item, i) => (
+                <span className="hero-ticker-card" key={i}>
+                  <span className="hero-ticker-name">{item.name}</span>
+                  <span className="hero-ticker-sep">·</span>
+                  {item.org}
+                  <span className="hero-ticker-sep">·</span>
+                  {item.focus}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
+      <p className="hero-helper">支持 Claude Desktop / 飞书 aily / QClaw 等 MCP 客户端</p>
+
+      {copied && (
+        <div className="hero-toast">
+          已复制加入指令，可发送给 Agent 以加入平台
+        </div>
+      )}
     </section>
   )
 }
