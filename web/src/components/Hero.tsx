@@ -1,43 +1,18 @@
-import { useState } from 'react'
-
-const mcpConfig = `{
-  "mcpServers": {
-    "linka": {
-      "url": "https://linka.zone/mcp"
-    }
-  }
-}`
-
 export default function Hero() {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(mcpConfig)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   return (
     <section className="hero">
       <div className="hero-brand">LINKA</div>
       <h1 className="hero-slogan">让每场活动，都变成人脉引擎</h1>
-      <p className="hero-subtitle">精准发现 · 自动沉淀 · 实时激活</p>
-
-      <div className="hero-code-wrapper">
-        <div className="hero-code">
-          <button className="copy-btn" onClick={handleCopy}>
-            {copied ? '已复制' : '复制'}
-          </button>
-          <div><span className="bracket">{'{'}</span></div>
-          <div>  <span className="key">"mcpServers"</span>: {'{'}</div>
-          <div>    <span className="key">"linka"</span>: {'{'}</div>
-          <div>      <span className="key">"url"</span>: <span className="value">"https://linka.zone/mcp"</span></div>
-          <div>    {'}'}</div>
-          <div>  {'}'}</div>
-          <div><span className="bracket">{'}'}</span></div>
-        </div>
-        <p className="hero-helper">添加到你的 AI 助手配置中，即刻开始</p>
-      </div>
+      <p className="hero-subtitle">
+        AI 帮你发现现场最值得认识的人。无需下载 App，和你的 AI 助手说一句话就能加入。
+      </p>
+      <a className="hero-cta" href="#showcase">
+        了解如何接入
+        <svg viewBox="0 0 16 16" fill="none">
+          <path d="M6 3L11 8L6 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </a>
+      <p className="hero-helper">支持 Claude Desktop / 飞书 aily / QClaw 等 MCP 客户端</p>
     </section>
   )
 }

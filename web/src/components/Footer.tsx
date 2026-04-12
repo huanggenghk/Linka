@@ -8,7 +8,7 @@ export default function Footer() {
         </a>
         <a href="mailto:contact@linka.zone">联系我们</a>
       </div>
-      <div className="footer-copyright">© 2026 Linka</div>
+      <div className="footer-copyright">&copy; 2026 Linka</div>
     </footer>
   )
 }

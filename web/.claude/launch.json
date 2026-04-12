@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "linka-web",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "preview", "--port", "4173"],
-      "port": 4173
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "vite", "--port", "5173"],
+      "port": 5173
     }
   ]
 }
