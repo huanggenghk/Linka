@@ -5,7 +5,8 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { registerTools } from "./mcp/tools.js";
 import { createDb } from "./db/index.js";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import type * as schema from "./db/schema.js";
+import { count } from "drizzle-orm";
+import * as schema from "./db/schema.js";
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -39,6 +40,19 @@ export function createApp(db?: DB) {
   );
 
   app.get("/health", (c) => c.json({ status: "ok" }));
+
+  app.get("/api/stats", async (c) => {
+    const [eventsResult] = await database
+      .select({ value: count() })
+      .from(schema.events);
+    const [agentsResult] = await database
+      .select({ value: count() })
+      .from(schema.agents);
+    return c.json({
+      events: eventsResult.value,
+      agents: agentsResult.value,
+    });
+  });
 
   app.all("/mcp", async (c) => {
     const transport = new WebStandardStreamableHTTPServerTransport();
