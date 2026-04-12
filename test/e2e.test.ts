@@ -139,6 +139,36 @@ describe("E2E 完整流程", () => {
     expect(a2.attendees[0].profile).toBe("画像 B");
   });
 
+  it("GET /api/stats 应该返回活动和Agent数量", async () => {
+    // 先创建一些测试数据
+    await callTool(app, "create_event", {
+      name: "Test Event 1",
+      description: "测试活动",
+      location: "北京",
+      date: "2026-06-01",
+    });
+    const event2 = parseToolResult(
+      await callTool(app, "create_event", {
+        name: "Test Event 2",
+        description: "测试活动2",
+        location: "上海",
+        date: "2026-06-02",
+      })
+    );
+    // 加入一个活动以创建 agent
+    await callTool(app, "join_event", {
+      invite_code: event2.invite_code,
+      name: "Alice",
+      contact_info: "alice@test.com",
+      profile: "Engineer",
+    });
+
+    const res = await app.request("/api/stats");
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual({ events: 2, agents: 1 });
+  });
+
   it("upsert 后 get_attendees 应该返回更新后的画像和联系方式", async () => {
     const event = parseToolResult(
       await callTool(app, "create_event", { name: "Upsert 测试" })
