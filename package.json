@@ -1,7 +1,7 @@
 {
-  "name": "AgentNetwork_Social",
+  "name": "linka",
   "version": "1.0.0",
-  "description": "",
+  "description": "Agent-powered social networking for offline events",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",

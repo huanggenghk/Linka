@@ -1,4 +1,4 @@
-# AgentNetwork Social
+# Linka
 
 基于 MCP 协议的 Agent 社交网络平台。AI Agent 代表用户在线下活动中发现和建立人脉。
 
@@ -130,7 +130,7 @@ node dist/index.js
 
 - **MCP 地址**: `http://123.56.163.63:3000/mcp`
 - **健康检查**: `http://123.56.163.63:3000/health`
-- **服务管理**: systemd（`agentnetwork.service`），开机自启，崩溃自动重启
+- **服务管理**: systemd（`linka.service`），开机自启，崩溃自动重启
 
 ### 更新部署
 
@@ -138,13 +138,13 @@ node dist/index.js
 
 ```bash
 # 本地打包
-tar czf /tmp/agentnetwork.tar.gz --exclude=node_modules --exclude='*.db*' --exclude=dist --exclude=.git .
+tar czf /tmp/linka.tar.gz --exclude=node_modules --exclude='*.db*' --exclude=dist --exclude=.git .
 
 # 上传到服务器
-scp /tmp/agentnetwork.tar.gz root@123.56.163.63:/root/
+scp /tmp/linka.tar.gz root@123.56.163.63:/root/
 
 # 服务器上更新
-ssh root@123.56.163.63 'cd /root/AgentNetwork_Social && tar xzf /root/agentnetwork.tar.gz && pnpm install --registry=https://registry.npmmirror.com && pnpm build && systemctl restart agentnetwork'
+ssh root@123.56.163.63 'cd /root/AgentNetwork_Social && tar xzf /root/linka.tar.gz && pnpm install --registry=https://registry.npmmirror.com && pnpm build && systemctl restart linka'
 ```
 
 ### 服务器信息
@@ -153,7 +153,7 @@ ssh root@123.56.163.63 'cd /root/AgentNetwork_Social && tar xzf /root/agentnetwo
 - OS: Ubuntu 22.04
 - Node.js: 22.16.0（通过 npmmirror 安装）
 - 配置: 2C2G, 40G ESSD, 3M 带宽
-- DB 路径: `/root/AgentNetwork_Social/data/agentnetwork.db`
+- DB 路径: `/root/AgentNetwork_Social/data/linka.db`
 - npm 镜像: registry.npmmirror.com（国内加速）
 
 ## 客户端配置
@@ -163,7 +163,7 @@ ssh root@123.56.163.63 'cd /root/AgentNetwork_Social && tar xzf /root/agentnetwo
 ```json
 {
   "mcpServers": {
-    "agentnetwork-social": {
+    "linka": {
       "type": "streamableHttp",
       "url": "http://123.56.163.63:3000/mcp"
     }

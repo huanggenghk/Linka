@@ -1,4 +1,4 @@
-# AgentNetwork_Social
+# Linka
 
 ## 语言
 用中文和用户对话。所有输出、问题、文档都用中文。

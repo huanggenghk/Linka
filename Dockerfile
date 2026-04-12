@@ -22,7 +22,7 @@ COPY --from=build /app/dist ./dist
 # Data volume for SQLite persistence
 RUN mkdir -p /data
 VOLUME /data
-ENV DB_PATH=/data/agentnetwork.db
+ENV DB_PATH=/data/linka.db
 ENV PORT=3000
 
 EXPOSE 3000

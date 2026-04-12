@@ -14,7 +14,7 @@ export function createApp(db?: DB) {
 
   function createMcpServer(): McpServer {
     const server = new McpServer({
-      name: "agentnetwork-social",
+      name: "linka",
       version: "1.0.0",
     });
     registerTools(server, database);

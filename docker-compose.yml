@@ -1,14 +1,14 @@
 services:
-  agentnetwork:
+  linka:
     build: .
     ports:
       - "3000:3000"
     volumes:
-      - agentnetwork-data:/data
+      - linka-data:/data
     environment:
-      - DB_PATH=/data/agentnetwork.db
+      - DB_PATH=/data/linka.db
       - PORT=3000
     restart: unless-stopped
 
 volumes:
-  agentnetwork-data:
+  linka-data:

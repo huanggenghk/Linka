@@ -5,7 +5,7 @@ const app = createApp();
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 
-console.log(`AgentNetwork Social MCP Server`);
+console.log(`Linka MCP Server`);
 console.log(`Health: http://localhost:${PORT}/health`);
 console.log(`MCP:    http://localhost:${PORT}/mcp`);
 
