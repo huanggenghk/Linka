@@ -56,7 +56,7 @@ export default function AttendeePanel() {
                   <div className="match-badge">匹配 {m.matchPct}%</div>
                 </div>
                 <div className="match-card-desc">{m.desc}</div>
-                <div className="match-card-contact">{m.contact}</div>
+                <div className="match-card-contact">联系方式：{m.contact}</div>
               </div>
             ))}
           </div>
