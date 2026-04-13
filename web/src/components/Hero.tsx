@@ -27,11 +27,22 @@ export default function Hero() {
   const [stats] = useState({ events: 235, agents: 5324 })
   const [copied, setCopied] = useState(false)
 
-  const handleJoin = () => {
-    navigator.clipboard.writeText(MCP_COMMAND).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 3000)
-    })
+  const handleJoin = async () => {
+    try {
+      await navigator.clipboard.writeText(MCP_COMMAND)
+    } catch {
+      // HTTP 环境下 clipboard API 不可用，用 execCommand 降级
+      const ta = document.createElement('textarea')
+      ta.value = MCP_COMMAND
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 3000)
   }
 
   return (
