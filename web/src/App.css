@@ -338,6 +338,205 @@ body {
   line-height: 1.7;
 }
 
+/* ========== Story Scenes ========== */
+.story {
+  display: flex;
+  align-items: center;
+  gap: 64px;
+  margin-bottom: 80px;
+}
+
+.story--reverse {
+  flex-direction: row-reverse;
+}
+
+.story-visual {
+  flex: 0 0 420px;
+  border-radius: var(--radius-lg);
+  position: relative;
+}
+
+.story-content {
+  flex: 1;
+}
+
+.story-label {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--amber);
+  font-weight: 700;
+  letter-spacing: 3px;
+  margin-bottom: 16px;
+}
+
+.story-pain {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 16px;
+}
+
+.story-solution {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.story-solution strong {
+  color: var(--amber);
+  font-weight: 600;
+}
+
+/* -- Scene 1: Crowd grid -- */
+.visual-crowd {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.crowd-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.crowd-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.crowd-dot--you {
+  background: var(--amber);
+  box-shadow: 0 0 0 3px rgba(194, 139, 62, 0.2);
+}
+
+.crowd-dot--match {
+  background: var(--amber-light);
+  border: 2px solid var(--amber);
+}
+
+.crowd-dot--dim {
+  opacity: 0.4;
+}
+
+.crowd-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+/* -- Scene 2: Chat demo -- */
+.visual-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chat-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.chat-row--right {
+  justify-content: flex-end;
+}
+
+.chat-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.chat-avatar--user {
+  background: var(--amber);
+}
+
+.chat-avatar--ai {
+  background: var(--text);
+}
+
+.chat-msg {
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  max-width: 320px;
+}
+
+.chat-msg--user {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.chat-msg--ai {
+  background: var(--amber-light);
+  color: var(--text);
+}
+
+.chat-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.chat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  max-width: 320px;
+  box-shadow: var(--card-shadow);
+}
+
+.chat-card-name {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.chat-card-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.chat-card-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.chat-card-event {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--amber-light);
+  color: var(--amber);
+  font-weight: 600;
+  margin-top: 6px;
+}
+
 /* ========== Organizer Report Card ========== */
 .report-card {
   background: var(--surface);
@@ -768,6 +967,21 @@ body {
   .showcase-info {
     flex: none;
     position: static;
+  }
+
+  .story {
+    flex-direction: column;
+    gap: 24px;
+    margin-bottom: 48px;
+  }
+
+  .story--reverse {
+    flex-direction: column;
+  }
+
+  .story-visual {
+    flex: none;
+    width: 100%;
   }
 
   .report-stats {

@@ -1,9 +1,14 @@
 import OrganizerPanel from './OrganizerPanel'
 import AttendeePanel from './AttendeePanel'
+import StoryScene1 from './StoryScene1'
+import StoryScene2 from './StoryScene2'
 
 export default function Showcase() {
   return (
     <section className="showcase-section" id="showcase">
+      <StoryScene1 />
+      <StoryScene2 />
+
       <div className="showcase-module">
         <div className="showcase-info">
           <p className="showcase-role">ATTENDEE</p>
