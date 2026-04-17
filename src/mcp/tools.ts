@@ -1,10 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
 import { v4 as uuidv4 } from "uuid";
+import QRCode from "qrcode";
 import { users, events, agents } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import type * as schema from "../db/schema.js";
+
+const BASE_URL = process.env.BASE_URL || "https://linka.zone";
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -14,12 +17,13 @@ export function registerTools(server: McpServer, db: DB) {
     "create_event",
     {
       title: "创建活动",
-      description: `创建一个新的线下活动。主办方使用此工具来创建活动并获得邀请码。
+      description: `创建一个新的线下活动。主办方使用此工具来创建活动并获得邀请码和二维码。
 
 Agent 应该做的事：
 1. 询问主办方活动信息（名称、描述、地点、日期）
 2. 调用此工具创建活动
-3. 告知邀请码，让主办方分享给参会者`,
+3. 把返回的二维码图片展示给主办方，让主办方分享给参会者
+4. 参会者把二维码发给自己的 Agent 即可加入`,
       inputSchema: {
         name: z.string().describe("活动名称"),
         description: z.string().optional().describe("活动描述"),
@@ -42,6 +46,9 @@ Agent 应该做的事：
         })
         .run();
 
+      const joinUrl = `${BASE_URL}/join/${inviteCode}`;
+      const qrCode = await QRCode.toDataURL(joinUrl);
+
       return {
         content: [
           {
@@ -49,6 +56,8 @@ Agent 应该做的事：
             text: JSON.stringify({
               event_id: id,
               invite_code: inviteCode,
+              join_url: joinUrl,
+              qr_code: qrCode,
             }),
           },
         ],
