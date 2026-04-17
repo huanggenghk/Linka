@@ -1,6 +1,12 @@
 import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import QRCode from "qrcode";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const FONTS_DIR = join(__dirname, "../assets/fonts");
 
 // ── Font loading ─────────────────────────────────────────────────────────────
 
@@ -13,85 +19,20 @@ type FontEntry = {
 
 let cachedFonts: FontEntry[] | null = null;
 
-async function loadFonts(): Promise<FontEntry[]> {
+function loadFonts(): FontEntry[] {
   if (cachedFonts) return cachedFonts;
 
-  const fetchFont = async (url: string): Promise<ArrayBuffer> => {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      },
-    });
-    if (!res.ok) throw new Error(`Font fetch failed: ${url} (${res.status})`);
-    return res.arrayBuffer();
+  const read = (file: string): ArrayBuffer => {
+    const buf = readFileSync(join(FONTS_DIR, file));
+    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
   };
-
-  // Get woff2 URL from Google Fonts CSS
-  const getGoogleFontUrl = async (
-    family: string,
-    weight: number
-  ): Promise<string> => {
-    const cssUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@${weight}&display=swap`;
-    const css = await fetch(cssUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      },
-    }).then((r) => r.text());
-
-    // For CJK fonts, grab the last url() which covers CJK Unified Ideographs
-    const matches = [...css.matchAll(/url\((https:\/\/[^)]+\.woff2)\)/g)];
-    if (!matches.length) throw new Error(`No woff2 URL for ${family} ${weight}`);
-    const isKorJpCn =
-      family.toLowerCase().includes("sc") ||
-      family.toLowerCase().includes("tc") ||
-      family.toLowerCase().includes("noto");
-    return isKorJpCn
-      ? matches[matches.length - 1][1]
-      : matches[0][1];
-  };
-
-  const [satoshi700Url, satoshi900Url, notoSC400Url, notoSC700Url, jbMonoUrl] =
-    await Promise.all([
-      getGoogleFontUrl("Noto Sans", 700), // placeholder — Satoshi from Fontshare
-      getGoogleFontUrl("Noto Sans", 900),
-      getGoogleFontUrl("Noto Sans SC", 400),
-      getGoogleFontUrl("Noto Sans SC", 700),
-      getGoogleFontUrl("JetBrains Mono", 400),
-    ]);
-
-  // Satoshi from Fontshare (not on Google Fonts)
-  const satoshiCssUrl =
-    "https://api.fontshare.com/v2/css?f[]=satoshi@700,900&display=swap";
-  const satoshiCss = await fetch(satoshiCssUrl).then((r) => r.text());
-  const satoshiUrls = [
-    ...satoshiCss.matchAll(/url\((https:\/\/[^)]+\.woff2)\)/g),
-  ].map((m) => m[1]);
-
-  const [satoshi700, satoshi900, notoSC400, notoSC700, jbMono] =
-    await Promise.all([
-      satoshiUrls[0] ? fetchFont(satoshiUrls[0]) : fetchFont(satoshi700Url),
-      satoshiUrls[1]
-        ? fetchFont(satoshiUrls[1])
-        : fetchFont(satoshi900Url),
-      fetchFont(notoSC400Url),
-      fetchFont(notoSC700Url),
-      fetchFont(jbMonoUrl),
-    ]);
 
   cachedFonts = [
-    { name: "Satoshi", data: satoshi700, weight: 700, style: "normal" },
-    { name: "Satoshi", data: satoshi900, weight: 900, style: "normal" },
-    // Noto Sans SC covers CJK + Latin fallback
-    { name: "Noto Sans SC", data: notoSC400, weight: 400, style: "normal" },
-    { name: "Noto Sans SC", data: notoSC700, weight: 700, style: "normal" },
-    {
-      name: "JetBrains Mono",
-      data: jbMono,
-      weight: 400,
-      style: "normal",
-    },
+    { name: "Inter", data: read("Inter-Bold.ttf"), weight: 700, style: "normal" },
+    { name: "Inter", data: read("Inter-Black.ttf"), weight: 900, style: "normal" },
+    { name: "Noto Sans SC", data: read("NotoSansSC-Regular.ttf"), weight: 400, style: "normal" },
+    { name: "Noto Sans SC", data: read("NotoSansSC-Bold.ttf"), weight: 700, style: "normal" },
+    { name: "JetBrains Mono", data: read("JetBrainsMono-Regular.ttf"), weight: 400, style: "normal" },
   ];
 
   return cachedFonts;
@@ -107,24 +48,23 @@ export interface CardData {
 }
 
 export async function generateInviteCard(data: CardData): Promise<Buffer> {
-  const fonts = await loadFonts();
+  const fonts = loadFonts();
 
-  // Generate QR code as base64 PNG
+  // Render natively at 3× so Satori lays out at full resolution instead of
+  // upscaling a 480px SVG. All logical values stay the same; only S changes.
+  const S = 3;
+  const W = 480 * S;   // 1440
+  const H = 297 * S;   // 891
+
   const qrDataUrl = await QRCode.toDataURL(data.joinUrl, {
-    width: 256,
+    width: 128 * S * 2, // oversample the QR source
     margin: 1,
     color: { dark: "#111111", light: "#FFFFFF" },
   });
 
-  // ── Layout constants ──
-  const W = 480;
-  const BODY_PAD_H = 26;
-  const BODY_PAD_V_TOP = 32;
-  const BODY_PAD_V_BOT = 30;
-  const QR_SIZE = 128;
-  const FOOTER_H = 56;
-
   // ── Element helpers ──
+  const px = (n: number) => `${n * S}px`;
+
   const flex = (
     style: Record<string, unknown>,
     children: unknown[]
@@ -141,223 +81,258 @@ export async function generateInviteCard(data: CardData): Promise<Buffer> {
     props: { style, children: content },
   });
 
-  // ── Card element ──
-  const card = flex(
+  const glow = (style: Record<string, unknown>): unknown => ({
+    type: "div",
+    props: { style: { display: "flex", position: "absolute", ...style }, children: [] },
+  });
+
+  // ── Dynamic: event info rows ──
+  const metaRows: unknown[] = [];
+  if (data.date) {
+    metaRows.push(
+      flex({ flexDirection: "row", gap: px(10), alignItems: "center" }, [
+        text("DATE", {
+          fontFamily: "JetBrains Mono",
+          fontSize: px(9),
+          fontWeight: 400,
+          color: "rgba(194,139,62,0.70)",
+          letterSpacing: "0.07em",
+          minWidth: px(36),
+        }),
+        text(data.date, {
+          fontFamily: "Noto Sans SC",
+          fontSize: px(11),
+          fontWeight: 400,
+          color: "rgba(255,240,210,0.42)",
+        }),
+      ])
+    );
+  }
+  if (data.location) {
+    metaRows.push(
+      flex({ flexDirection: "row", gap: px(10), alignItems: "center" }, [
+        text("LOC", {
+          fontFamily: "JetBrains Mono",
+          fontSize: px(9),
+          fontWeight: 400,
+          color: "rgba(194,139,62,0.70)",
+          letterSpacing: "0.07em",
+          minWidth: px(36),
+        }),
+        text(data.location, {
+          fontFamily: "Noto Sans SC",
+          fontSize: px(11),
+          fontWeight: 400,
+          color: "rgba(255,240,210,0.42)",
+        }),
+      ])
+    );
+  }
+
+  // ── Template: fixed footer strip ──
+  const FOOTER_H = 56;
+  const footer = flex(
     {
-      flexDirection: "column",
-      width: `${W}px`,
-      background:
-        "linear-gradient(135deg, #07090F 0%, #0C0A0A 55%, #120C04 100%)",
-      borderRadius: "16px",
-      border: "1px solid rgba(255,255,255,0.09)",
-      overflow: "hidden",
-      position: "relative",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingLeft: px(26),
+      paddingRight: px(26),
+      paddingTop: "0px",
+      paddingBottom: "0px",
+      height: px(FOOTER_H),
+      background: "rgba(0,0,0,0.30)",
+      borderTopWidth: `${S}px`,
+      borderTopStyle: "solid",
+      borderTopColor: "rgba(255,255,255,0.08)",
+      gap: px(16),
+      flexShrink: "0",
     },
     [
-      // Ambient glow on right side (simulates glass warmth)
-      {
-        type: "div",
-        props: {
-          style: {
-            position: "absolute",
-            top: "-30px",
-            right: "-20px",
-            width: "260px",
-            height: "260px",
-            borderRadius: "50%",
-            background:
-              "radial-gradient(ellipse, rgba(180,110,20,0.28) 0%, transparent 70%)",
-            pointerEvents: "none",
-          },
-          children: [],
-        },
-      },
-
-      // ── Body ──
-      flex(
-        {
-          flexDirection: "row",
-          padding: `${BODY_PAD_V_TOP}px ${BODY_PAD_H}px ${BODY_PAD_V_BOT}px`,
-          gap: "22px",
-          alignItems: "center",
-          flex: "1",
-        },
-        [
-          // Left: event info
-          flex(
-            {
-              flexDirection: "column",
-              flex: "1",
-              gap: "0px",
-            },
-            [
-              // Event name
-              {
-                type: "div",
-                props: {
-                  style: {
-                    display: "flex",
-                    fontFamily: "Satoshi",
-                    fontSize: "20px",
-                    fontWeight: 900,
-                    color: "rgba(255,252,244,0.92)",
-                    lineHeight: 1.22,
-                    marginBottom: "18px",
-                    whiteSpace: "pre-wrap",
-                  },
-                  children: data.eventName,
-                },
-              },
-              // Meta rows
-              flex({ flexDirection: "column", gap: "6px" }, [
-                ...(data.date
-                  ? [
-                      flex({ flexDirection: "row", gap: "10px", alignItems: "center" }, [
-                        text("DATE", {
-                          fontFamily: "JetBrains Mono",
-                          fontSize: "9px",
-                          fontWeight: 400,
-                          color: "rgba(194,139,62,0.70)",
-                          letterSpacing: "0.07em",
-                          minWidth: "36px",
-                        }),
-                        text(data.date, {
-                          fontFamily: "Noto Sans SC",
-                          fontSize: "11px",
-                          fontWeight: 400,
-                          color: "rgba(255,240,210,0.38)",
-                          letterSpacing: "0.02em",
-                        }),
-                      ]),
-                    ]
-                  : []),
-                ...(data.location
-                  ? [
-                      flex({ flexDirection: "row", gap: "10px", alignItems: "center" }, [
-                        text("LOC", {
-                          fontFamily: "JetBrains Mono",
-                          fontSize: "9px",
-                          fontWeight: 400,
-                          color: "rgba(194,139,62,0.70)",
-                          letterSpacing: "0.07em",
-                          minWidth: "36px",
-                        }),
-                        text(data.location, {
-                          fontFamily: "Noto Sans SC",
-                          fontSize: "11px",
-                          fontWeight: 400,
-                          color: "rgba(255,240,210,0.38)",
-                          letterSpacing: "0.02em",
-                        }),
-                      ]),
-                    ]
-                  : []),
-              ]),
-            ]
-          ),
-
-          // Vertical divider
-          {
-            type: "div",
-            props: {
-              style: {
-                width: "1px",
-                alignSelf: "stretch",
-                background:
-                  "linear-gradient(to bottom, transparent, rgba(255,255,255,0.12) 20%, rgba(255,255,255,0.12) 80%, transparent)",
-                flexShrink: 0,
-                margin: "4px 0",
-              },
-              children: [],
-            },
-          },
-
-          // Right: QR code
-          flex(
-            {
-              flexShrink: "0",
-              width: `${QR_SIZE + 16}px`,
-              alignItems: "center",
-              justifyContent: "center",
-            },
-            [
-              {
-                type: "img",
-                props: {
-                  src: qrDataUrl,
-                  width: QR_SIZE,
-                  height: QR_SIZE,
-                  style: {
-                    borderRadius: "10px",
-                    boxShadow:
-                      "0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(194,139,62,0.25)",
-                  },
-                },
-              },
-            ]
-          ),
-        ]
-      ),
-
-      // ── Footer ──
-      flex(
-        {
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 26px",
-          height: `${FOOTER_H}px`,
-          background: "rgba(0,0,0,0.18)",
-          borderTop: "1px solid rgba(255,255,255,0.07)",
-          gap: "16px",
-        },
-        [
-          // CTA text
-          flex({ flexDirection: "column", gap: "3px" }, [
-            text("发给 Agent，接入 Linka", {
-              fontFamily: "Noto Sans SC",
-              fontSize: "13px",
-              fontWeight: 700,
-              color: "#C28B3E",
-              letterSpacing: "0.01em",
-            }),
-            text("在 Agent 网络中高效链接现场人脉", {
-              fontFamily: "Noto Sans SC",
-              fontSize: "11px",
-              fontWeight: 400,
-              color: "rgba(255,240,210,0.30)",
-            }),
-          ]),
-          // Brand
-          flex(
-            { flexDirection: "column", alignItems: "flex-end", gap: "2px" },
-            [
-              text("LINKA", {
-                fontFamily: "Satoshi",
-                fontSize: "13px",
-                fontWeight: 700,
-                color: "#C28B3E",
-                letterSpacing: "0.16em",
-              }),
-              text("linka.zone", {
-                fontFamily: "JetBrains Mono",
-                fontSize: "10px",
-                fontWeight: 400,
-                color: "rgba(255,255,255,0.18)",
-                letterSpacing: "0.04em",
-              }),
-            ]
-          ),
-        ]
-      ),
+      flex({ flexDirection: "column", gap: px(3) }, [
+        text("发给 Agent，接入 Linka", {
+          fontFamily: "Noto Sans SC",
+          fontSize: px(13),
+          fontWeight: 700,
+          color: "#C28B3E",
+        }),
+        text("在 Agent 网络中高效链接现场人脉", {
+          fontFamily: "Noto Sans SC",
+          fontSize: px(11),
+          fontWeight: 400,
+          color: "rgba(255,240,210,0.32)",
+        }),
+      ]),
+      flex({ flexDirection: "column", alignItems: "flex-end", gap: px(3) }, [
+        text("LINKA", {
+          fontFamily: "Inter",
+          fontSize: px(13),
+          fontWeight: 700,
+          color: "#C28B3E",
+          letterSpacing: "0.16em",
+        }),
+        text("linka.zone", {
+          fontFamily: "JetBrains Mono",
+          fontSize: px(10),
+          fontWeight: 400,
+          color: "rgba(255,255,255,0.20)",
+          letterSpacing: "0.04em",
+        }),
+      ]),
     ]
   );
 
-  const svg = await satori(card as Parameters<typeof satori>[0], {
+  const QR_SIZE = 128;
+  const PAD_H = 26;
+
+  // ── Scene: dark base + ambient orbs + glass card ──
+  const scene = {
+    type: "div",
+    props: {
+      style: {
+        display: "flex",
+        position: "relative",
+        width: `${W}px`,
+        height: `${H}px`,
+        background: "#07090F",
+        borderRadius: px(16),
+        overflow: "hidden",
+      },
+      children: [
+        // Orb 1: warm amber, right-center (matches demo body::before)
+        glow({
+          top: "0px",
+          left: px(140),
+          width: px(360),
+          height: px(260),
+          background:
+            "radial-gradient(ellipse at 70% 35%, rgba(180,110,20,0.60) 0%, rgba(180,110,20,0.18) 45%, transparent 70%)",
+        }),
+        // Orb 2: deep blue, left-center (matches demo body::after)
+        glow({
+          top: px(55),
+          left: "0px",
+          width: px(240),
+          height: px(200),
+          background:
+            "radial-gradient(ellipse at 25% 55%, rgba(30,60,140,0.50) 0%, rgba(30,60,140,0.12) 45%, transparent 72%)",
+        }),
+        // Orb 3: small amber accent, top-right corner (matches demo .scene::before)
+        glow({
+          top: "0px",
+          left: px(330),
+          width: px(160),
+          height: px(150),
+          background:
+            "radial-gradient(ellipse at 85% 15%, rgba(194,139,62,0.40) 0%, transparent 65%)",
+        }),
+
+        // Glass card layer
+        {
+          type: "div",
+          props: {
+            style: {
+              display: "flex",
+              flexDirection: "column",
+              position: "absolute",
+              top: "0px",
+              left: "0px",
+              width: `${W}px`,
+              height: `${H}px`,
+              background: "rgba(255,255,255,0.04)",
+              borderWidth: `${S}px`,
+              borderStyle: "solid",
+              borderColor: "rgba(255,255,255,0.10)",
+              borderRadius: px(16),
+              overflow: "hidden",
+            },
+            children: [
+              // Body: dynamic parts only (event name + QR)
+              flex(
+                {
+                  flexDirection: "row",
+                  flex: "1",
+                  paddingTop: px(32),
+                  paddingBottom: px(30),
+                  paddingLeft: px(PAD_H),
+                  paddingRight: px(PAD_H),
+                  gap: px(22),
+                  alignItems: "center",
+                },
+                [
+                  // Left: event name + meta
+                  flex({ flexDirection: "column", flex: "1" }, [
+                    flex(
+                      {
+                        fontFamily: "Inter",
+                        fontSize: px(20),
+                        fontWeight: 900,
+                        color: "rgba(255,252,244,0.92)",
+                        lineHeight: 1.22,
+                        marginBottom: px(18),
+                        flexWrap: "wrap",
+                      },
+                      [text(data.eventName, {})]
+                    ),
+                    ...(metaRows.length > 0
+                      ? [flex({ flexDirection: "column", gap: px(7) }, metaRows)]
+                      : []),
+                  ]),
+
+                  // Vertical divider
+                  flex(
+                    {
+                      width: `${S}px`,
+                      alignSelf: "stretch",
+                      background: "rgba(255,255,255,0.12)",
+                      flexShrink: "0",
+                      marginTop: px(4),
+                      marginBottom: px(4),
+                    },
+                    []
+                  ),
+
+                  // Right: QR code
+                  flex(
+                    {
+                      flexShrink: "0",
+                      width: px(QR_SIZE + 16),
+                      alignItems: "center",
+                      justifyContent: "center",
+                    },
+                    [
+                      {
+                        type: "img",
+                        props: {
+                          src: qrDataUrl,
+                          style: {
+                            width: px(QR_SIZE),
+                            height: px(QR_SIZE),
+                            borderRadius: px(10),
+                          },
+                        },
+                      },
+                    ]
+                  ),
+                ]
+              ),
+
+              footer,
+            ],
+          },
+        },
+      ],
+    },
+  };
+
+  const svg = await satori(scene as Parameters<typeof satori>[0], {
     width: W,
+    height: H,
     fonts,
   });
 
-  const resvg = new Resvg(svg, { fitTo: { mode: "width", value: W * 2 } }); // 2x for retina
+  // Render at 1:1 — no upscaling needed since Satori already laid out at 3×
+  // Transparent background so rounded corners don't produce white corner artifacts
+  const resvg = new Resvg(svg, { background: "rgba(0,0,0,0)" });
   return Buffer.from(resvg.render().asPng());
 }
