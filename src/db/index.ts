@@ -40,5 +40,3 @@ export function createDb(dbPath?: string) {
   return drizzle(sqlite, { schema });
 }
 
-// Default singleton for production use
-export const db = createDb();

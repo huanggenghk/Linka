@@ -23,7 +23,7 @@ describe("QR 码加入流程", () => {
   });
 
   describe("create_event 返回值", () => {
-    it("应该返回 qr_code 和 join_url", async () => {
+    it("应该返回 invite_code、join_url 和邀请卡片图片", async () => {
       const res = await callTool(app, "create_event", {
         name: "测试活动",
       });
@@ -32,13 +32,15 @@ describe("QR 码加入流程", () => {
       expect(data.event_id).toBeDefined();
       expect(data.invite_code).toBeDefined();
       expect(data.join_url).toBeDefined();
-      expect(data.qr_code).toBeDefined();
 
       // join_url 格式正确
       expect(data.join_url).toContain(`/join/${data.invite_code}`);
 
-      // qr_code 是 base64 data URL
-      expect(data.qr_code).toMatch(/^data:image\/png;base64,/);
+      // 第二个 content block 是邀请卡片 PNG 图片
+      const imageBlock = res.result?.content?.[1];
+      expect(imageBlock?.type).toBe("image");
+      expect(imageBlock?.mimeType).toBe("image/png");
+      expect(imageBlock?.data).toBeDefined();
     });
   });
 
@@ -102,7 +104,7 @@ describe("QR 码加入流程", () => {
       });
       const createData = parseToolResult(createRes);
       expect(createData.join_url).toBeDefined();
-      expect(createData.qr_code).toBeDefined();
+      expect(createRes.result?.content?.[1]?.type).toBe("image");
 
       // 2. 参与者 Agent 从 join_url 解析出 invite_code，访问 /join/:code
       const code = createData.invite_code;

@@ -1,8 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
 import { v4 as uuidv4 } from "uuid";
-import QRCode from "qrcode";
 import { users, events, agents } from "../db/schema.js";
+import { generateInviteCard } from "./card.js";
 import { eq, and } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import type * as schema from "../db/schema.js";
@@ -47,18 +47,24 @@ Agent 应该做的事：
         .run();
 
       const joinUrl = `${BASE_URL}/join/${inviteCode}`;
-      const qrCode = await QRCode.toDataURL(joinUrl);
+
+      const cardPng = await generateInviteCard({
+        eventName: name,
+        date: date ?? null,
+        location: location ?? null,
+        joinUrl,
+      });
 
       return {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify({
-              event_id: id,
-              invite_code: inviteCode,
-              join_url: joinUrl,
-              qr_code: qrCode,
-            }),
+            text: JSON.stringify({ event_id: id, invite_code: inviteCode, join_url: joinUrl }),
+          },
+          {
+            type: "image" as const,
+            data: cardPng.toString("base64"),
+            mimeType: "image/png",
           },
         ],
       };
