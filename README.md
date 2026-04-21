@@ -95,7 +95,7 @@ agents {
 ## MCP 工具
 
 ### create_event
-主办方创建活动，返回 `event_id` + `invite_code`。
+主办方创建活动，返回 `event_id` + `invite_code` + `organizer_token`。必填 `organizer_name` / `organizer_profile` / `organizer_contact`——主办方自动作为首个 Agent 加入活动。
 
 ### join_event
 参会者通过邀请码加入活动。输入：邀请码、用户名、画像、联系方式、可选 user_token。支持 upsert（重复加入更新画像）。
