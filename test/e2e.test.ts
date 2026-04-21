@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { createTestApp, callTool, parseToolResult, mcpRequest } from "./helpers.js";
+import { createTestApp, callTool, parseToolResult, mcpRequest, createEventArgs } from "./helpers.js";
 import type { Hono } from "hono";
 
 describe("E2E 完整流程", () => {
@@ -28,13 +28,13 @@ describe("E2E 完整流程", () => {
   });
 
   it("完整流程：创建活动 → 多人加入 → 获取列表 → 验证联系方式可见", async () => {
-    // 1. 主办方创建活动
-    const createRes = await callTool(app, "create_event", {
+    // 1. 主办方创建活动（自动加入为首个 Agent）
+    const createRes = await callTool(app, "create_event", createEventArgs({
       name: "AI Builder Meetup",
       description: "AI 开发者聚会",
       location: "深圳南山",
       date: "2026-05-01",
-    });
+    }));
     const event = parseToolResult(createRes);
     expect(event.event_id).toBeDefined();
     expect(event.invite_code).toBeDefined();
@@ -48,7 +48,7 @@ describe("E2E 完整流程", () => {
     });
     const dataA = parseToolResult(joinA);
     expect(dataA.event_name).toBe("AI Builder Meetup");
-    expect(dataA.registered_count).toBe(1);
+    expect(dataA.registered_count).toBe(2); // 主办方 + Alice
 
     // 3. 参会者 B 加入
     const joinB = await callTool(app, "join_event", {
@@ -58,7 +58,7 @@ describe("E2E 完整流程", () => {
       contact_info: "微信: bob_rag",
     });
     const dataB = parseToolResult(joinB);
-    expect(dataB.registered_count).toBe(2);
+    expect(dataB.registered_count).toBe(3);
 
     // 4. 参会者 C 加入
     const joinC = await callTool(app, "join_event", {
@@ -68,14 +68,14 @@ describe("E2E 完整流程", () => {
       contact_info: "微信: charlie_vc",
     });
     const dataC = parseToolResult(joinC);
-    expect(dataC.registered_count).toBe(3);
+    expect(dataC.registered_count).toBe(4);
 
     // 5. 获取参会者列表
     const attendeesRes = await callTool(app, "get_attendees", {
       event_id: event.event_id,
     });
     const attendeesData = parseToolResult(attendeesRes);
-    expect(attendeesData.attendees).toHaveLength(3);
+    expect(attendeesData.attendees).toHaveLength(4); // 主办方 + 3 参会者
 
     // 6. 验证所有人的联系方式可见
     const contacts = attendeesData.attendees.map((a: any) => a.contact_info);
@@ -91,12 +91,12 @@ describe("E2E 完整流程", () => {
   });
 
   it("跨活动身份：同一 token 加入不同活动", async () => {
-    // 创建两个活动
+    // 创建两个活动（每个活动自动有 1 个主办方）
     const event1 = parseToolResult(
-      await callTool(app, "create_event", { name: "活动 A" })
+      await callTool(app, "create_event", createEventArgs({ name: "活动 A" }))
     );
     const event2 = parseToolResult(
-      await callTool(app, "create_event", { name: "活动 B" })
+      await callTool(app, "create_event", createEventArgs({ name: "活动 B" }))
     );
 
     // 用户加入活动 A
@@ -124,38 +124,40 @@ describe("E2E 完整流程", () => {
     // token 应该一致
     expect(join2.user_token).toBe(token);
 
-    // 活动 A 有 1 人
+    // 活动 A 有 2 人（主办方 + Hugo）
     const a1 = parseToolResult(
       await callTool(app, "get_attendees", { event_id: event1.event_id })
     );
-    expect(a1.attendees).toHaveLength(1);
-    expect(a1.attendees[0].profile).toBe("画像 A");
+    expect(a1.attendees).toHaveLength(2);
+    const hugoA = a1.attendees.find((x: any) => x.name === "Hugo");
+    expect(hugoA.profile).toBe("画像 A");
 
-    // 活动 B 有 1 人
+    // 活动 B 有 2 人
     const a2 = parseToolResult(
       await callTool(app, "get_attendees", { event_id: event2.event_id })
     );
-    expect(a2.attendees).toHaveLength(1);
-    expect(a2.attendees[0].profile).toBe("画像 B");
+    expect(a2.attendees).toHaveLength(2);
+    const hugoB = a2.attendees.find((x: any) => x.name === "Hugo");
+    expect(hugoB.profile).toBe("画像 B");
   });
 
   it("GET /api/stats 应该返回活动和Agent数量", async () => {
-    // 先创建一些测试数据
-    await callTool(app, "create_event", {
+    // 先创建一些测试数据（每个活动自动生成 1 个主办方 Agent）
+    await callTool(app, "create_event", createEventArgs({
       name: "Test Event 1",
       description: "测试活动",
       location: "北京",
       date: "2026-06-01",
-    });
+    }));
     const event2 = parseToolResult(
-      await callTool(app, "create_event", {
+      await callTool(app, "create_event", createEventArgs({
         name: "Test Event 2",
         description: "测试活动2",
         location: "上海",
         date: "2026-06-02",
-      })
+      }))
     );
-    // 加入一个活动以创建 agent
+    // 再加入一个参会者
     await callTool(app, "join_event", {
       invite_code: event2.invite_code,
       name: "Alice",
@@ -166,12 +168,12 @@ describe("E2E 完整流程", () => {
     const res = await app.request("/api/stats");
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data).toEqual({ events: 2, agents: 1 });
+    expect(data).toEqual({ events: 2, agents: 3 }); // 2 主办方 + 1 参会者
   });
 
   it("upsert 后 get_attendees 应该返回更新后的画像和联系方式", async () => {
     const event = parseToolResult(
-      await callTool(app, "create_event", { name: "Upsert 测试" })
+      await callTool(app, "create_event", createEventArgs({ name: "Upsert 测试" }))
     );
 
     // 首次加入
@@ -197,9 +199,9 @@ describe("E2E 完整流程", () => {
     const attendees = parseToolResult(
       await callTool(app, "get_attendees", { event_id: event.event_id })
     );
-    expect(attendees.attendees).toHaveLength(1);
-    expect(attendees.attendees[0].name).toBe("Hugo New");
-    expect(attendees.attendees[0].profile).toBe("新画像");
-    expect(attendees.attendees[0].contact_info).toBe("新联系方式");
+    expect(attendees.attendees).toHaveLength(2); // 主办方 + Hugo
+    const hugo = attendees.attendees.find((a: any) => a.name === "Hugo New");
+    expect(hugo.profile).toBe("新画像");
+    expect(hugo.contact_info).toBe("新联系方式");
   });
 });
