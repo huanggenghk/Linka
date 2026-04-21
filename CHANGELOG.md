@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3.1] - 2026-04-22
+
+### Fixed
+- **构建**：`pnpm build` 现在会把 `src/assets/` 拷进 `dist/`（原先只跑 `tsc`，字体文件没进产物，导致 `generateInviteCard` 在生产环境抛 ENOENT）
+- **部署**：rsync 现在排除整个 `data/` 目录，以前只排除 `data/*.db`，`--delete` 把 SQLite WAL/SHM 一并删掉，造成未 checkpoint 的写入数据丢失
+- **架构文档**：deployment.md 的架构图补齐 `/join`、`/card`、`/api` 路由，并说明 sites-available 与 sites-enabled 当前不是 symlink、新增后端路由需要两份都改
+
 ## [1.0.3.0] - 2026-04-22
 
 ### Added
