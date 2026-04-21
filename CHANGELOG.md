@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.4.0] - 2026-04-22
+
+### Changed
+- **生产数据隔离（Layer 2）**：SQLite 数据库从 `/root/Linka/data/linka.db` 迁至 `/var/lib/linka/linka.db`，与代码目录 `/root/Linka/` 物理隔离。部署流程（rsync/git/手误 `rm -rf`）再也无法影响生产数据
+- systemd unit 的 `DB_PATH` 环境变量同步更新；deployment.md 与 README 中所有 DB 路径引用同步更新
+- rsync 新增 `--exclude='data.archived-*'`，保护归档目录 7 天内不被 `--delete` 清除（rollback 保险）
+
+### Added
+- `docs/migrations/2026-04-22-data-to-var-lib.md`：迁移 runbook 与 rollback 步骤
+- `docs/superpowers/plans/2026-04-22-data-isolation.md`：Layer 1/2 实施计划留档
+
 ## [1.0.3.2] - 2026-04-22
 
 ### Changed

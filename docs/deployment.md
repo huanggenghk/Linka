@@ -27,9 +27,12 @@
 
 | 路径 | 用途 |
 |------|------|
-| `/root/Linka/` | 后端项目代码 |
-| `/root/Linka/data/linka.db` | SQLite 数据库 |
+| `/root/Linka/` | 后端项目代码（部署时 rsync 的目标，可随时整个重建） |
+| `/var/lib/linka/linka.db` | SQLite 数据库（与代码物理隔离，部署流程碰不到） |
+| `/var/lib/linka/backups/` | 数据库备份目录（Layer 3 未实现前为空） |
 | `/var/www/linka/` | 前端静态文件（构建产物） |
+
+> **为什么数据放 `/var/lib/linka/`**：让数据目录物理上离开代码目录 `/root/Linka/`，这样任何 rsync / git clean / `rm -rf /root/Linka` 的失误都碰不到生产数据。rsync 的 `--exclude='data/'` 只是第二重防御。
 
 ## 前端部署
 
@@ -59,6 +62,7 @@ pnpm build
 rsync -avz --delete \
   --exclude='node_modules' \
   --exclude='data/' \
+  --exclude='data.archived-*' \
   --exclude='.git' \
   --exclude='web/dist' \
   --exclude='web/node_modules' \
@@ -88,7 +92,7 @@ Type=simple
 User=root
 WorkingDirectory=/root/Linka
 ExecStart=/usr/local/bin/node dist/index.js
-Environment=DB_PATH=/root/Linka/data/linka.db
+Environment=DB_PATH=/var/lib/linka/linka.db
 Environment=PORT=3000
 Restart=always
 RestartSec=5
@@ -141,7 +145,7 @@ pnpm build && \
 cd web && pnpm install && npx vite build && cd .. && \
 scp -r web/dist/* root@123.56.163.63:/var/www/linka/ && \
 rsync -avz --delete \
-  --exclude='node_modules' --exclude='data/' --exclude='.git' \
+  --exclude='node_modules' --exclude='data/' --exclude='data.archived-*' --exclude='.git' \
   --exclude='web/dist' --exclude='web/node_modules' \
   --exclude='.claude/worktrees' --exclude='.superpowers' \
   . root@123.56.163.63:/root/Linka/ && \

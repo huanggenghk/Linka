@@ -143,7 +143,7 @@ node dist/index.js
 - Node.js: 22.16.0
 - 配置: 2C2G, 40G ESSD, 3M 带宽
 - 后端代码路径: `/root/Linka/`
-- DB 路径: `/root/Linka/data/linka.db`
+- DB 路径: `/var/lib/linka/linka.db`（与代码目录物理隔离，部署流程碰不到）
 - 前端静态文件: `/var/www/linka/`
 
 完整的部署流程、Nginx 配置、SSL 证书管理见 [docs/deployment.md](./docs/deployment.md)。
