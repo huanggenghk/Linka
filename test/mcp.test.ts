@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { createTestApp, callTool, parseToolResult, isToolError } from "./helpers.js";
+import { createTestApp, callTool, parseToolResult, isToolError, createEventArgs } from "./helpers.js";
 import type { Hono } from "hono";
 
 describe("MCP Tools", () => {
@@ -12,12 +12,12 @@ describe("MCP Tools", () => {
 
   describe("create_event", () => {
     it("应该创建活动并返回 event_id 和 invite_code", async () => {
-      const res = await callTool(app, "create_event", {
+      const res = await callTool(app, "create_event", createEventArgs({
         name: "AI Meetup",
         description: "AI 开发者聚会",
         location: "深圳",
         date: "2026-05-01",
-      });
+      }));
 
       const data = parseToolResult(res);
       expect(data.event_id).toBeDefined();
@@ -25,10 +25,10 @@ describe("MCP Tools", () => {
       expect(data.invite_code).toHaveLength(8);
     });
 
-    it("应该在只传 name 时也能创建活动", async () => {
-      const res = await callTool(app, "create_event", {
+    it("应该在只传必填字段时也能创建活动", async () => {
+      const res = await callTool(app, "create_event", createEventArgs({
         name: "简单活动",
-      });
+      }));
 
       const data = parseToolResult(res);
       expect(data.event_id).toBeDefined();
@@ -36,12 +36,32 @@ describe("MCP Tools", () => {
     });
 
     it("每次创建活动应该生成不同的邀请码", async () => {
-      const res1 = await callTool(app, "create_event", { name: "活动1" });
-      const res2 = await callTool(app, "create_event", { name: "活动2" });
+      const res1 = await callTool(app, "create_event", createEventArgs({ name: "活动1" }));
+      const res2 = await callTool(app, "create_event", createEventArgs({ name: "活动2" }));
 
       const data1 = parseToolResult(res1);
       const data2 = parseToolResult(res2);
       expect(data1.invite_code).not.toBe(data2.invite_code);
+    });
+
+    it("应该自动把主办方加入为首个 Agent", async () => {
+      const res = await callTool(app, "create_event", {
+        name: "自动加入测试",
+        organizer_name: "Hugo",
+        organizer_profile: "活动发起人，AI 工程师",
+        organizer_contact: "微信: hugo_org",
+      });
+      const data = parseToolResult(res);
+      expect(data.organizer_token).toBeDefined();
+
+      const attendeesRes = await callTool(app, "get_attendees", {
+        event_id: data.event_id,
+      });
+      const attendees = parseToolResult(attendeesRes);
+      expect(attendees.attendees).toHaveLength(1);
+      expect(attendees.attendees[0].name).toBe("Hugo");
+      expect(attendees.attendees[0].profile).toBe("活动发起人，AI 工程师");
+      expect(attendees.attendees[0].contact_info).toBe("微信: hugo_org");
     });
   });
 
@@ -50,9 +70,9 @@ describe("MCP Tools", () => {
     let eventId: string;
 
     beforeEach(async () => {
-      const res = await callTool(app, "create_event", {
+      const res = await callTool(app, "create_event", createEventArgs({
         name: "测试活动",
-      });
+      }));
       const data = parseToolResult(res);
       inviteCode = data.invite_code;
       eventId = data.event_id;
@@ -71,7 +91,7 @@ describe("MCP Tools", () => {
       expect(data.event_name).toBe("测试活动");
       expect(data.agent_id).toBeDefined();
       expect(data.user_token).toBeDefined();
-      expect(data.registered_count).toBe(1);
+      expect(data.registered_count).toBe(2); // 主办方 + 新加入用户
     });
 
     it("无效邀请码应该返回错误", async () => {
@@ -99,7 +119,7 @@ describe("MCP Tools", () => {
       const token = data1.user_token;
 
       // 创建第二个活动
-      const res2 = await callTool(app, "create_event", { name: "活动2" });
+      const res2 = await callTool(app, "create_event", createEventArgs({ name: "活动2" }));
       const event2 = parseToolResult(res2);
 
       // 用 token 加入第二个活动
@@ -125,7 +145,7 @@ describe("MCP Tools", () => {
         contact_info: "微信: hugo_ai",
       });
       const data1 = parseToolResult(res1);
-      expect(data1.registered_count).toBe(1);
+      expect(data1.registered_count).toBe(2); // 主办方 + Hugo
 
       // 用同一 token 再次加入
       const res2 = await callTool(app, "join_event", {
@@ -137,7 +157,7 @@ describe("MCP Tools", () => {
       });
       const data2 = parseToolResult(res2);
 
-      expect(data2.registered_count).toBe(1); // 还是 1 个人，不是 2 个
+      expect(data2.registered_count).toBe(2); // 依然是 2 个人，upsert 不新增
       expect(data2.agent_id).toBe(data1.agent_id); // 同一个 agent
     });
 
@@ -157,7 +177,7 @@ describe("MCP Tools", () => {
       });
 
       const data = parseToolResult(res);
-      expect(data.registered_count).toBe(2);
+      expect(data.registered_count).toBe(3); // 主办方 + User1 + User2
     });
 
     it("无效 user_token 应该创建新用户（使用该 token 作为 ID）", async () => {
@@ -180,7 +200,7 @@ describe("MCP Tools", () => {
     let eventId: string;
 
     beforeEach(async () => {
-      const res = await callTool(app, "create_event", { name: "聚会" });
+      const res = await callTool(app, "create_event", createEventArgs({ name: "聚会" }));
       const data = parseToolResult(res);
       inviteCode = data.invite_code;
       eventId = data.event_id;
@@ -196,13 +216,14 @@ describe("MCP Tools", () => {
       expect(data.error).toBe("活动不存在");
     });
 
-    it("空活动应该返回空列表", async () => {
+    it("新活动应该至少包含主办方", async () => {
       const res = await callTool(app, "get_attendees", {
         event_id: eventId,
       });
 
       const data = parseToolResult(res);
-      expect(data.attendees).toEqual([]);
+      expect(data.attendees).toHaveLength(1);
+      expect(data.attendees[0].name).toBe("主办方");
     });
 
     it("应该返回所有参会者及其联系方式", async () => {
@@ -225,11 +246,12 @@ describe("MCP Tools", () => {
       });
 
       const data = parseToolResult(res);
-      expect(data.attendees).toHaveLength(2);
+      expect(data.attendees).toHaveLength(3); // 主办方 + Alice + Bob
 
       const names = data.attendees.map((a: any) => a.name);
       expect(names).toContain("Alice");
       expect(names).toContain("Bob");
+      expect(names).toContain("主办方");
 
       const alice = data.attendees.find((a: any) => a.name === "Alice");
       expect(alice.profile).toBe("AI 研究员");

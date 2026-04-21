@@ -64,3 +64,15 @@ export function parseToolResult(res: any): any {
 export function isToolError(res: any): boolean {
   return res.result?.isError === true;
 }
+
+/** Default organizer fields used by tests that don't care about the organizer */
+export const DEFAULT_ORGANIZER = {
+  organizer_name: "主办方",
+  organizer_profile: "活动发起人",
+  organizer_contact: "微信: organizer",
+};
+
+/** Shortcut for create_event calls with default organizer fields merged in */
+export function createEventArgs(args: Record<string, unknown>) {
+  return { ...DEFAULT_ORGANIZER, ...args };
+}

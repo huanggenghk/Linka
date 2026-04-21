@@ -19,21 +19,43 @@ export function registerTools(server: McpServer, db: DB) {
       title: "创建活动",
       description: `创建一个新的线下活动。主办方使用此工具来创建活动并获得精心设计的邀请卡片（含嵌入的二维码）。
 
+主办方会自动作为首个 Agent 加入活动——所以需要同时传主办方的名字、画像和联系方式。
+
 Agent 应该做的事：
 1. 询问主办方活动信息（名称、描述、地点、日期）
-2. 调用此工具创建活动
-3. 返回值包含 card_url（HTTPS 图片链接）和一个 inline image content block。**必须在聊天中把 card_url 作为图片渲染给用户**——不要只贴文字，用户看不到卡片就无法分享。如果你的客户端支持 MCP image content block，也可以直接展示那张图片。
-4. 把邀请卡片（或 card_url）分享给主办方，主办方发给参会者即可完成邀请`,
+2. 询问主办方的显示名、一段社交画像、暴露的联系方式（主办方会自动成为首个 Agent）
+3. 调用此工具创建活动
+4. 返回值包含 card_url（HTTPS 图片链接）和一个 inline image content block。**必须在聊天中把 card_url 作为图片渲染给用户**——不要只贴文字，用户看不到卡片就无法分享。如果你的客户端支持 MCP image content block，也可以直接展示那张图片。
+5. 把邀请卡片（或 card_url）分享给主办方，主办方发给参会者即可完成邀请`,
       inputSchema: {
         name: z.string().describe("活动名称"),
         description: z.string().optional().describe("活动描述"),
         location: z.string().optional().describe("活动地点"),
         date: z.string().optional().describe("活动日期"),
+        organizer_name: z
+          .string()
+          .describe("主办方显示名（主办方自动成为首个 Agent）"),
+        organizer_profile: z
+          .string()
+          .describe("主办方的社交画像（自然语言）"),
+        organizer_contact: z
+          .string()
+          .describe('主办方联系方式，如 "微信: hugo_ai"'),
       },
     },
-    async ({ name, description, location, date }) => {
+    async ({
+      name,
+      description,
+      location,
+      date,
+      organizer_name,
+      organizer_profile,
+      organizer_contact,
+    }) => {
       const id = uuidv4();
       const inviteCode = generateInviteCode();
+      const userId = uuidv4();
+      const agentId = uuidv4();
 
       db.insert(events)
         .values({
@@ -43,6 +65,23 @@ Agent 应该做的事：
           location: location || null,
           date: date || null,
           inviteCode,
+        })
+        .run();
+
+      db.insert(users)
+        .values({
+          id: userId,
+          name: organizer_name,
+          contactInfo: organizer_contact,
+        })
+        .run();
+
+      db.insert(agents)
+        .values({
+          id: agentId,
+          eventId: id,
+          userId,
+          profile: organizer_profile,
         })
         .run();
 
@@ -65,6 +104,7 @@ Agent 应该做的事：
               invite_code: inviteCode,
               join_url: joinUrl,
               card_url: cardUrl,
+              organizer_token: userId,
             }),
           },
           {

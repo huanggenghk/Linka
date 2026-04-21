@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { createTestApp, callTool, parseToolResult } from "./helpers.js";
+import { createTestApp, callTool, parseToolResult, createEventArgs } from "./helpers.js";
 import type { Hono } from "hono";
 
 describe("QR 码加入流程", () => {
@@ -11,12 +11,12 @@ describe("QR 码加入流程", () => {
     const env = createTestApp();
     app = env.app;
 
-    const res = await callTool(app, "create_event", {
+    const res = await callTool(app, "create_event", createEventArgs({
       name: "AI Builder Meetup",
       description: "AI 开发者聚会",
       location: "深圳南山",
       date: "2026-05-01",
-    });
+    }));
     const data = parseToolResult(res);
     inviteCode = data.invite_code;
     eventId = data.event_id;
@@ -24,9 +24,9 @@ describe("QR 码加入流程", () => {
 
   describe("create_event 返回值", () => {
     it("应该返回 invite_code、join_url 和邀请卡片图片", async () => {
-      const res = await callTool(app, "create_event", {
+      const res = await callTool(app, "create_event", createEventArgs({
         name: "测试活动",
-      });
+      }));
       const data = parseToolResult(res);
 
       expect(data.event_id).toBeDefined();
@@ -100,9 +100,11 @@ describe("QR 码加入流程", () => {
       expect(contentType).toContain("text/html");
 
       const html = await res.text();
-      expect(html).toContain("AI Builder Meetup");
-      expect(html).toContain(inviteCode);
-      expect(html).toContain("如何加入");
+      expect(html).toContain("AI Builder Meetup"); // 活动名
+      expect(html).toContain("加入网络"); // CTA 标签
+      expect(html).toContain("LIVE FEED"); // 动态流标签
+      expect(html).toContain(`/join/${inviteCode}`); // 完整邀请链接在 COPY 框内
+      expect(html).toContain("主办方"); // 默认 organizer 出现在 feed 中
     });
 
     it("无效邀请码应该返回 404 HTML", async () => {
@@ -119,12 +121,12 @@ describe("QR 码加入流程", () => {
   describe("E2E：完整 QR 加入流程", () => {
     it("创建活动 → 获取 QR 信息 → 查询活动 → 用 invite_code 加入", async () => {
       // 1. 组织者创建活动，拿到 QR 码信息
-      const createRes = await callTool(app, "create_event", {
+      const createRes = await callTool(app, "create_event", createEventArgs({
         name: "QR 测试活动",
         description: "测试完整 QR 加入流程",
         location: "北京",
         date: "2026-06-01",
-      });
+      }));
       const createData = parseToolResult(createRes);
       expect(createData.join_url).toBeDefined();
       expect(createRes.result?.content?.[1]?.type).toBe("image");
@@ -147,16 +149,16 @@ describe("QR 码加入流程", () => {
       });
       const joinData = parseToolResult(joinRes);
       expect(joinData.event_name).toBe("QR 测试活动");
-      expect(joinData.registered_count).toBe(1);
+      expect(joinData.registered_count).toBe(2); // 主办方 + 参与者
 
       // 4. 验证参会者列表
       const attendeesRes = await callTool(app, "get_attendees", {
         event_id: createData.event_id,
       });
       const attendeesData = parseToolResult(attendeesRes);
-      expect(attendeesData.attendees).toHaveLength(1);
-      expect(attendeesData.attendees[0].name).toBe("参与者");
-      expect(attendeesData.attendees[0].contact_info).toBe("微信: test_qr");
+      expect(attendeesData.attendees).toHaveLength(2);
+      const participant = attendeesData.attendees.find((a: any) => a.name === "参与者");
+      expect(participant.contact_info).toBe("微信: test_qr");
     });
   });
 });

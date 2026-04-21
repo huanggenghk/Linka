@@ -6,8 +6,9 @@ import { registerTools } from "./mcp/tools.js";
 import { generateInviteCard } from "./mcp/card.js";
 import { createDb } from "./db/index.js";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { count, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import * as schema from "./db/schema.js";
+import { renderJoinPage } from "./views/join.js";
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -101,35 +102,43 @@ export function createApp(db?: DB) {
 
     const accept = c.req.header("Accept") || "";
     if (accept.includes("text/html")) {
-      const html = `<!DOCTYPE html>
-<html lang="zh">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${event.name} - Linka</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 20px; color: #333; }
-    h1 { font-size: 1.5rem; margin-bottom: 8px; }
-    .meta { color: #666; font-size: 0.9rem; margin-bottom: 16px; }
-    .desc { line-height: 1.6; margin-bottom: 24px; }
-    .join-hint { background: #f5f0e8; padding: 16px; border-radius: 8px; font-size: 0.9rem; line-height: 1.6; }
-    code { background: #e8e0d0; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; }
-  </style>
-</head>
-<body>
-  <h1>${event.name}</h1>
-  <div class="meta">
-    ${event.date ? `<span>📅 ${event.date}</span>` : ""}
-    ${event.location ? `<span> · 📍 ${event.location}</span>` : ""}
-  </div>
-  ${event.description ? `<p class="desc">${event.description}</p>` : ""}
-  <div class="join-hint">
-    <strong>如何加入？</strong><br>
-    把这个页面的链接或二维码发给你的 AI 助手（Claude、飞书 aily 等），它会自动帮你加入活动。<br><br>
-    邀请码：<code>${event.inviteCode}</code>
-  </div>
-</body>
-</html>`;
+      const feedRows = database
+        .select({
+          name: schema.users.name,
+          profile: schema.agents.profile,
+          joinedAt: schema.agents.createdAt,
+        })
+        .from(schema.agents)
+        .innerJoin(schema.users, eq(schema.agents.userId, schema.users.id))
+        .where(eq(schema.agents.eventId, event.id))
+        .orderBy(desc(schema.agents.createdAt))
+        .limit(12)
+        .all();
+
+      const [activeResult] = database
+        .select({ value: count() })
+        .from(schema.agents)
+        .where(eq(schema.agents.eventId, event.id))
+        .all();
+
+      const baseUrl = process.env.BASE_URL || "https://linka.zone";
+
+      const html = renderJoinPage({
+        event: {
+          name: event.name,
+          date: event.date,
+          location: event.location,
+          host: null,
+        },
+        activeCount: activeResult?.value ?? 0,
+        feed: feedRows.map((r) => ({
+          name: r.name,
+          profilePreview: r.profile,
+          joinedAt: r.joinedAt,
+        })),
+        joinUrl: `${baseUrl}/join/${event.inviteCode}`,
+      });
+
       return c.html(html);
     }
 
