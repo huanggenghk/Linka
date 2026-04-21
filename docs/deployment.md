@@ -13,10 +13,15 @@
 用户 → https://linka.zone
          ↓
       Nginx (443/80)
-       ├── /           → 静态文件 (/var/www/linka)
-       ├── /mcp        → 反向代理 → Hono (127.0.0.1:3000)
-       └── /health     → 反向代理 → Hono (127.0.0.1:3000)
+       ├── /              → 静态文件 (/var/www/linka)
+       ├── /mcp           → 反向代理 → Hono (127.0.0.1:3000)
+       ├── /api           → 反向代理 → Hono (127.0.0.1:3000)
+       ├── /health        → 反向代理 → Hono (127.0.0.1:3000)
+       ├── /join/:code    → 反向代理 → Hono (127.0.0.1:3000)
+       └── /card/:code.png → 反向代理 → Hono (127.0.0.1:3000)
 ```
+
+新增后端路由时，必须同步在 `/etc/nginx/sites-available/linka` 和 `sites-enabled/linka`（注意：当前不是 symlink，两份都要改）里加 `location` 块，否则 nginx 会把请求当 SPA 路由返回 index.html。
 
 ## 目录结构（服务器）
 
@@ -46,13 +51,14 @@ ssh root@123.56.163.63 "nginx -t && systemctl reload nginx"
 在本地执行：
 
 ```bash
-# 1. 构建 TypeScript
-npx tsc
+# 1. 构建 TypeScript（build 脚本已包含把 src/assets 拷进 dist/，字体文件必须同步）
+pnpm build
 
-# 2. 同步代码到服务器（排除不必要的文件）
+# 2. 同步代码到服务器（排除整个 data/ 目录以保护 SQLite WAL + shm；
+#    以前只排除 data/*.db 导致 --delete 把未 checkpoint 的 WAL 删掉，丢数据）
 rsync -avz --delete \
   --exclude='node_modules' \
-  --exclude='data/*.db' \
+  --exclude='data/' \
   --exclude='.git' \
   --exclude='web/dist' \
   --exclude='web/node_modules' \
@@ -131,11 +137,11 @@ certbot renew             # 续期
 
 ```bash
 # 在项目根目录执行
-npx tsc && \
+pnpm build && \
 cd web && pnpm install && npx vite build && cd .. && \
 scp -r web/dist/* root@123.56.163.63:/var/www/linka/ && \
 rsync -avz --delete \
-  --exclude='node_modules' --exclude='data/*.db' --exclude='.git' \
+  --exclude='node_modules' --exclude='data/' --exclude='.git' \
   --exclude='web/dist' --exclude='web/node_modules' \
   --exclude='.claude/worktrees' --exclude='.superpowers' \
   . root@123.56.163.63:/root/Linka/ && \
