@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { registerTools } from "./mcp/tools.js";
+import { generateInviteCard } from "./mcp/card.js";
 import { createDb } from "./db/index.js";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { count, eq } from "drizzle-orm";
@@ -135,6 +136,31 @@ export function createApp(db?: DB) {
       date: event.date,
       invite_code: event.inviteCode,
     });
+  });
+
+  app.get("/card/:code{.+\\.png}", async (c) => {
+    const codeParam = c.req.param("code").replace(/\.png$/, "");
+    const event = database
+      .select()
+      .from(schema.events)
+      .where(eq(schema.events.inviteCode, codeParam))
+      .get();
+
+    if (!event) {
+      return c.json({ error: "活动不存在" }, 404);
+    }
+
+    const baseUrl = process.env.BASE_URL || "https://linka.zone";
+    const cardPng = await generateInviteCard({
+      eventName: event.name,
+      date: event.date,
+      location: event.location,
+      joinUrl: `${baseUrl}/join/${event.inviteCode}`,
+    });
+
+    c.header("Content-Type", "image/png");
+    c.header("Cache-Control", "public, max-age=86400, immutable");
+    return c.body(new Uint8Array(cardPng));
   });
 
   app.all("/mcp", async (c) => {

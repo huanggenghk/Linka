@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2.0] - 2026-04-22
+
+### Added
+- 新增 `GET /card/:code.png` 路由，按邀请码生成并返回邀请卡片 PNG（带 24h 缓存），让纯文本 MCP 客户端（如飞书 aily）也能通过 URL 渲染卡片
+- `create_event` 返回值新增 `card_url` 字段，与 inline image content block 并存构成双通道交付
+
+### Changed
+- `create_event` 工具描述更新：卡片不再称"二维码"，明确告知 agent 必须把 `card_url` 作为图片渲染给用户
+
 ## [1.0.1.1] - 2026-04-22
 
 ### Fixed
