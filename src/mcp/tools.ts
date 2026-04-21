@@ -17,16 +17,16 @@ export function registerTools(server: McpServer, db: DB) {
     "create_event",
     {
       title: "创建活动",
-      description: `创建一个新的线下活动。主办方使用此工具来创建活动并获得邀请码和二维码。
+      description: `创建一个新的线下活动。主办方使用此工具来创建活动并获得精心设计的邀请卡片（含嵌入的二维码）。
 
 主办方会自动作为首个 Agent 加入活动——所以需要同时传主办方的名字、画像和联系方式。
 
 Agent 应该做的事：
 1. 询问主办方活动信息（名称、描述、地点、日期）
-2. 询问主办方的显示名、一段社交画像、暴露的联系方式
-3. 调用此工具创建活动（主办方自动加入）
-4. 把返回的二维码图片展示给主办方，让主办方分享给参会者
-5. 参会者把二维码发给自己的 Agent 即可加入`,
+2. 询问主办方的显示名、一段社交画像、暴露的联系方式（主办方会自动成为首个 Agent）
+3. 调用此工具创建活动
+4. 返回值包含 card_url（HTTPS 图片链接）和一个 inline image content block。**必须在聊天中把 card_url 作为图片渲染给用户**——不要只贴文字，用户看不到卡片就无法分享。如果你的客户端支持 MCP image content block，也可以直接展示那张图片。
+5. 把邀请卡片（或 card_url）分享给主办方，主办方发给参会者即可完成邀请`,
       inputSchema: {
         name: z.string().describe("活动名称"),
         description: z.string().optional().describe("活动描述"),
@@ -86,6 +86,7 @@ Agent 应该做的事：
         .run();
 
       const joinUrl = `${BASE_URL}/join/${inviteCode}`;
+      const cardUrl = `${BASE_URL}/card/${inviteCode}.png`;
 
       const cardPng = await generateInviteCard({
         eventName: name,
@@ -102,6 +103,7 @@ Agent 应该做的事：
               event_id: id,
               invite_code: inviteCode,
               join_url: joinUrl,
+              card_url: cardUrl,
               organizer_token: userId,
             }),
           },
