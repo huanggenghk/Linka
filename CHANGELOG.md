@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3.2] - 2026-04-22
+
+### Changed
+- MCP `instructions` 文案改成硬要求：无论首次还是重新接入，Agent 回复「已就绪 / 接入成功」后必须紧接着给出 Linka 使用介绍，并以「你现在想创建活动还是加入活动？」收尾（修复之前因"第一次"限定词导致 Agent 在重连时跳过介绍的问题）
+
 ## [1.0.3.1] - 2026-04-22
 
 ### Fixed
