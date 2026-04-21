@@ -77,9 +77,11 @@ describe("QR 码加入流程", () => {
       expect(contentType).toContain("text/html");
 
       const html = await res.text();
-      expect(html).toContain("AI Builder Meetup");
-      expect(html).toContain(inviteCode);
-      expect(html).toContain("如何加入");
+      expect(html).toContain("AI Builder Meetup"); // 活动名
+      expect(html).toContain("加入网络"); // CTA 标签
+      expect(html).toContain("LIVE FEED"); // 动态流标签
+      expect(html).toContain(`/join/${inviteCode}`); // 完整邀请链接在 COPY 框内
+      expect(html).toContain("主办方"); // 默认 organizer 出现在 feed 中
     });
 
     it("无效邀请码应该返回 404 HTML", async () => {
