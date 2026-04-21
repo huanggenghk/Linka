@@ -62,6 +62,7 @@ pnpm build
 rsync -avz --delete \
   --exclude='node_modules' \
   --exclude='data/' \
+  --exclude='data.archived-*' \
   --exclude='.git' \
   --exclude='web/dist' \
   --exclude='web/node_modules' \
@@ -144,7 +145,7 @@ pnpm build && \
 cd web && pnpm install && npx vite build && cd .. && \
 scp -r web/dist/* root@123.56.163.63:/var/www/linka/ && \
 rsync -avz --delete \
-  --exclude='node_modules' --exclude='data/' --exclude='.git' \
+  --exclude='node_modules' --exclude='data/' --exclude='data.archived-*' --exclude='.git' \
   --exclude='web/dist' --exclude='web/node_modules' \
   --exclude='.claude/worktrees' --exclude='.superpowers' \
   . root@123.56.163.63:/root/Linka/ && \
