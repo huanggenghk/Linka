@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3.0] - 2026-04-22
+
+### Added
+- MCP initialize 下发 Agent 使用说明（`instructions` 字段），用户首次接入时 Agent 会主动介绍 Linka 的三个核心场景：创建活动、加入活动、现场人脉挖掘，并指引 Agent 保留 `user_token` / `event_id` 作为跨活动身份
+
 ## [1.0.2.0] - 2026-04-22
 
 ### Added
