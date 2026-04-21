@@ -126,35 +126,27 @@ node dist/index.js
 
 ## 线上部署
 
-当前部署在阿里云 ECS（华北2 北京）：
+当前部署在阿里云 ECS（华北2 北京），通过 Nginx + Let's Encrypt 提供 HTTPS：
 
-- **MCP 地址**: `http://123.56.163.63:3000/mcp`
-- **健康检查**: `http://123.56.163.63:3000/health`
+- **MCP 地址**: `https://linka.zone/mcp`
+- **健康检查**: `https://linka.zone/health`
+- **架构**: 用户 → Nginx (443, TLS 终结) → Hono (127.0.0.1:3000)
 - **服务管理**: systemd（`linka.service`），开机自启，崩溃自动重启
 
-### 更新部署
-
-本地构建后通过 scp 上传（GitHub 从国内访问不稳定）：
-
-```bash
-# 本地打包
-tar czf /tmp/linka.tar.gz --exclude=node_modules --exclude='*.db*' --exclude=dist --exclude=.git .
-
-# 上传到服务器
-scp /tmp/linka.tar.gz root@123.56.163.63:/root/
-
-# 服务器上更新
-ssh root@123.56.163.63 'cd /root/AgentNetwork_Social && tar xzf /root/linka.tar.gz && pnpm install --registry=https://registry.npmmirror.com && pnpm build && systemctl restart linka'
-```
+详细部署步骤见 [docs/deployment.md](./docs/deployment.md)。
 
 ### 服务器信息
 
+- 域名: linka.zone（阿里云 DNS）
 - IP: 123.56.163.63
 - OS: Ubuntu 22.04
-- Node.js: 22.16.0（通过 npmmirror 安装）
+- Node.js: 22.16.0
 - 配置: 2C2G, 40G ESSD, 3M 带宽
-- DB 路径: `/root/AgentNetwork_Social/data/linka.db`
-- npm 镜像: registry.npmmirror.com（国内加速）
+- 后端代码路径: `/root/Linka/`
+- DB 路径: `/root/Linka/data/linka.db`
+- 前端静态文件: `/var/www/linka/`
+
+完整的部署流程、Nginx 配置、SSL 证书管理见 [docs/deployment.md](./docs/deployment.md)。
 
 ## 客户端配置
 
@@ -165,7 +157,7 @@ ssh root@123.56.163.63 'cd /root/AgentNetwork_Social && tar xzf /root/linka.tar.
   "mcpServers": {
     "linka": {
       "type": "streamableHttp",
-      "url": "http://123.56.163.63:3000/mcp"
+      "url": "https://linka.zone/mcp"
     }
   }
 }
@@ -173,7 +165,7 @@ ssh root@123.56.163.63 'cd /root/AgentNetwork_Social && tar xzf /root/linka.tar.
 
 ### 飞书 aily
 
-在 aily 后台添加 MCP 工具，地址填 `http://123.56.163.63:3000/mcp`。
+在 aily 后台添加 MCP 工具，地址填 `https://linka.zone/mcp`。
 
 ## 项目状态
 

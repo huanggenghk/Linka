@@ -21,7 +21,8 @@ const ROW3 = [
   { name: 'Zack', org: '光速光合', focus: '关注AI+教育赛道，寻找早期团队' },
 ]
 
-const MCP_COMMAND = `npx @anthropic-ai/sdk mcp add linka --transport sse https://linka.zone/mcp`
+const MCP_COMMAND = `帮我接入 Linka —— 新一代 Agent 人脉网络（https://linka.zone）。
+添加 MCP 服务器：https://linka.zone/mcp`
 
 export default function Hero() {
   const [stats] = useState({ events: 235, agents: 5324 })
