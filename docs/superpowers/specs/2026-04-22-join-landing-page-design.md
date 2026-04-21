@@ -48,21 +48,21 @@
 
 ### 页面结构（从上到下）
 
-1. **顶栏**：`LINKA` 标识 + 右侧 `NETWORK · LIVE` 绿点状态
-2. **邀请元信息条**：`INVITE / FNRQQ896 / BEIJING NODE` 用等宽字体 + 字距
-3. **活动标题**：大号 Satoshi/DM Sans 700
-4. **活动元信息**：DATE / LOC / HOST 三行，等宽标签 + 正文
-5. **LIVE 面板**（重点）：
+去掉任何顶栏和邀请码元信息条——进入页面直接是活动标题，视觉焦点不被分散。
+
+1. **活动标题**：大号 Satoshi/DM Sans 700，页面顶部留白 48–64px
+2. **活动元信息**：DATE / LOC / HOST 三行，等宽标签 + 正文
+3. **LIVE 面板**（重点）：
    - 头部：活跃 Agent 数（大号，带琥珀脉冲点）+ 右侧 `LIVE FEED` 标签
    - 底部：垂直滚动的动态流，无缝循环，上下淡出 mask
    - 每条格式：`{时间} · {姓名} → {意图摘要}`
-6. **CTA 卡片**：
+4. **CTA 卡片**：
    - `加入网络` 标签（琥珀色）
    - 主文案："把这个链接发给你的 AI Agent，自动帮你接入活动"
    - 一键复制链接框（整框点击复制，toast 提示）
    - 3 步引导（复制 → 粘贴给 Agent → Agent 帮你找人）
    - 支持的 Agent 列表（Claude / 飞书 aily / Cursor / ChatGPT MCP / 自建）
-7. **页脚**：`POWERED BY MCP` + `linka.zone ↗`
+5. **页脚**：`POWERED BY MCP` + `linka.zone ↗`
 
 ## 数据模型
 
@@ -129,11 +129,17 @@ DESIGN 里原本考虑新增"seeking/寻找什么"结构化字段，但 `agents.
 
 ## 空态
 
-当 `agents` 表中该活动 0 条记录时：
+不用做空态。为此需要改 `create_event` MCP tool：
 
-- 活跃 Agent 数显示 `0`，脉冲点正常显示（保持视觉张力）
-- FEED 区域替换为居中一条提示：`等待第一个 Agent 接入…`（琥珀色，等宽字体）
-- CTA 卡片保持不变——此时最需要引导用户成为第一个
+- **新增必填参数**：`organizer_name`、`organizer_profile`
+- **行为**：创建 `events` 记录的同一事务里，同时 `upsert` 一条 `users`（用 name + 一个合成的 contact_info 占位，或者让 organizer 也传 `contact_info`）+ 插入一条 `agents`（`event_id` 指向新活动、`user_id` 指向 organizer、`profile` 存 `organizer_profile`）
+- **产品直觉**：没人能想象一个"没有主办方"的活动；办活动的人天然是第一个节点。二维码分享出去后，第一个扫码的人立刻在 FEED 里能看到主办方
+
+这样 `agents` 表对任何有效活动至少 1 条，落地页不用分支空态。
+
+FEED 少于 12 条时，前端滚动轨道按实际数量循环，仍然是无缝循环动画。
+
+**兼容性**：该改动会让旧客户端调用 `create_event` 时缺 `organizer_name` 报错。Linka 当前还在早期、没有外部客户端，可以直接破坏式升级；CHANGELOG 里记录即可。
 
 ## 技术实现
 
@@ -148,7 +154,7 @@ DESIGN 里原本考虑新增"seeking/寻找什么"结构化字段，但 `agents.
 ### 视觉资源
 
 - 不引入任何图片资源，所有视觉元素（光晕、粒子、扫描线、图标）都是纯 CSS + Canvas
-- `FNRQQ896` 风格的邀请码元信息条，如果 `BEIJING NODE` 类城市标签没有数据源，初版去掉这一段
+- 不展示活动描述 `events.description`：保持页面聚焦在"这是个活的网络 → 快加入"的叙事上，长段描述只会分散注意力
 
 ### Canvas 性能
 
@@ -178,11 +184,12 @@ GET /api/events/:code/feed
 ## 实施范围边界
 
 **本次要做的：**
+- 改 `create_event` MCP tool：新增 `organizer_name` / `organizer_profile`（以及 `organizer_contact` 若需要），创建活动的同时把主办方写入 `users` + `agents`
 - 重写 `/join/:code` HTML 模板
 - 新增 `src/views/join.ts`
 - 从 `agents` + `users` 表读取 FEED 数据
-- 空态、reduced-motion、404（活动不存在）都要覆盖
-- 测试：`test/join.test.ts` 覆盖渲染路径、空态、活动不存在
+- reduced-motion、404（活动不存在）要覆盖
+- 测试：`test/mcp.test.ts` 补 create_event 自动加入主办方的断言；`test/join.test.ts` 覆盖渲染路径、活动不存在
 
 **本次不做：**
 - 新增 `participants_intent` 字段
@@ -190,8 +197,10 @@ GET /api/events/:code/feed
 - 匿名化控件
 - 主站浅色落地页的改造
 
-## Open Questions（需要用户确认）
+## 已确认的决策
 
-1. **顶栏元信息条的第三段**：demo 里写了 `BEIJING NODE`，但目前 `events` 表里没有"city/node"字段。初版建议去掉这一段，只保留 `INVITE / {code}`——还是从 `location` 里提取城市？
-2. **LIVE 面板在 0 人时的文案**：`等待第一个 Agent 接入…`——或者你想要更有指向性的文案（如"扫码成为这场活动的 #1 节点"）？
-3. **活动描述展示**：`events.description` 目前没放进 demo，需要加吗？如果加，放在活动标题下方、LIVE 面板之上？
+2026-04-22 用户确认：
+
+- 去掉顶栏（LINKA 标识 + `NETWORK · LIVE`）和邀请码元信息条（`INVITE / {code}`）。活动标题作为页面第一个元素
+- 不做空态：改 `create_event` 让主办方自动成为首个 Agent，`agents` 表对任何有效活动至少 1 条
+- 不展示 `events.description`
