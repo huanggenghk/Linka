@@ -32,15 +32,38 @@ describe("QR 码加入流程", () => {
       expect(data.event_id).toBeDefined();
       expect(data.invite_code).toBeDefined();
       expect(data.join_url).toBeDefined();
+      expect(data.card_url).toBeDefined();
 
-      // join_url 格式正确
+      // join_url / card_url 格式正确
       expect(data.join_url).toContain(`/join/${data.invite_code}`);
+      expect(data.card_url).toContain(`/card/${data.invite_code}.png`);
 
       // 第二个 content block 是邀请卡片 PNG 图片
       const imageBlock = res.result?.content?.[1];
       expect(imageBlock?.type).toBe("image");
       expect(imageBlock?.mimeType).toBe("image/png");
       expect(imageBlock?.data).toBeDefined();
+    });
+  });
+
+  describe("GET /card/:code.png", () => {
+    it("应该返回 PNG 图片字节流", async () => {
+      const res = await app.request(`/card/${inviteCode}.png`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toBe("image/png");
+      expect(res.headers.get("cache-control")).toContain("max-age");
+
+      const buf = new Uint8Array(await res.arrayBuffer());
+      // PNG magic bytes: 89 50 4E 47
+      expect(buf[0]).toBe(0x89);
+      expect(buf[1]).toBe(0x50);
+      expect(buf[2]).toBe(0x4e);
+      expect(buf[3]).toBe(0x47);
+    });
+
+    it("无效邀请码应该返回 404", async () => {
+      const res = await app.request("/card/INVALID0.png");
+      expect(res.status).toBe(404);
     });
   });
 
