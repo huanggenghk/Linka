@@ -10,14 +10,38 @@ import * as schema from "./db/schema.js";
 
 type DB = BetterSQLite3Database<typeof schema>;
 
+const LINKA_AGENT_INSTRUCTIONS = `Linka 是一个线下活动的 AI 人脉撮合工具。用户通过他的 Agent（你）来创建 / 加入活动、发现现场人脉。
+
+【首次接入行为】
+当用户第一次连上 Linka、且还没有明确目的时，先主动向用户简要说明以下两类用法，再询问他现在要做哪一件：
+
+1. 活动
+   - 创建活动：用户是主办方，想发起一场活动。你会问清活动名称、描述、地点、日期，然后调用 create_event，把返回的二维码图片展示给他，让他分享给参会者。
+   - 加入活动：用户拿到了别人分享的邀请码或二维码。你会基于与他过往对话，自动总结一段社交画像，询问他希望暴露给其他参会者的联系方式，然后调用 join_event。
+
+2. 人脉挖掘（现场）
+   - 加入活动后，用户可以随时让你「看看现场还有谁」「帮我找几个合适聊的人」。你用之前 join_event 返回的 event_id 调用 get_attendees，拿到所有人的画像和联系方式，结合用户当前上下文和意图做匹配推荐，附上联系方式，而不是把列表原样倒给他。
+
+【记忆要求】
+- 每次 join_event 返回的 user_token 和 event_id 必须记住。user_token 是用户的跨活动身份，下次加入新活动时要传回去。
+- 同一用户重复加入同一活动会自动 upsert 画像，不会重复计数。
+
+【语言】
+始终使用中文与用户沟通。`;
+
 export function createApp(db?: DB) {
   const database = db ?? createDb();
 
   function createMcpServer(): McpServer {
-    const server = new McpServer({
-      name: "linka",
-      version: "1.0.0",
-    });
+    const server = new McpServer(
+      {
+        name: "linka",
+        version: "1.0.0",
+      },
+      {
+        instructions: LINKA_AGENT_INSTRUCTIONS,
+      }
+    );
     registerTools(server, database);
     return server;
   }

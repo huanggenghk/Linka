@@ -16,6 +16,19 @@ describe("E2E 完整流程", () => {
     expect(data).toEqual({ status: "ok" });
   });
 
+  it("initialize 应该返回 Agent 使用说明 instructions", async () => {
+    const res = await mcpRequest(app, "initialize", {
+      protocolVersion: "2025-06-18",
+      capabilities: {},
+      clientInfo: { name: "test-client", version: "0.0.0" },
+    });
+    const instructions = res.result?.instructions;
+    expect(typeof instructions).toBe("string");
+    expect(instructions).toContain("创建活动");
+    expect(instructions).toContain("加入活动");
+    expect(instructions).toContain("get_attendees");
+  });
+
   it("tools/list 应该返回 3 个工具", async () => {
     const res = await mcpRequest(app, "tools/list");
     const tools = res.result?.tools;
