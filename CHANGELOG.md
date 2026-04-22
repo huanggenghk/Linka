@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0.1] - 2026-04-22
+
+### Fixed
+- 邀请卡片 footer 现在以明文显示活动 URL（`linka.zone/join/CODE`），解决参会者 Agent 拿到卡片却读不出二维码 URL、无法加入活动的问题。LLM 视觉模型能 OCR 文字但无法解码二维码像素——QR 继续服务扫码的人，明文 URL 服务 Agent
+- `create_event` tool 描述提示主办方 Agent 同时发送邀请卡图片和纯文本链接，双保险：图被压糊了还有文字、忘了发图也有文字
+
 ## [1.1.0.0] - 2026-04-22
 
 ### Added

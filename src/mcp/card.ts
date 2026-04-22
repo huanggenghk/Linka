@@ -171,11 +171,11 @@ export async function generateInviteCard(data: CardData): Promise<Buffer> {
           color: "#C28B3E",
           letterSpacing: "0.16em",
         }),
-        text("linka.zone", {
+        text(data.joinUrl.replace(/^https?:\/\//, ""), {
           fontFamily: "JetBrains Mono",
           fontSize: px(10),
           fontWeight: 400,
-          color: "rgba(255,255,255,0.20)",
+          color: "rgba(255,240,210,0.55)",
           letterSpacing: "0.04em",
         }),
       ]),
