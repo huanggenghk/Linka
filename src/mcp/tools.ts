@@ -26,7 +26,8 @@ Agent 应该做的事：
 2. 询问主办方的显示名、一段社交画像、暴露的联系方式（主办方会自动成为首个 Agent）
 3. 调用此工具创建活动
 4. 返回值包含 card_url（HTTPS 图片链接）和一个 inline image content block。**必须在聊天中把 card_url 作为图片渲染给用户**——不要只贴文字，用户看不到卡片就无法分享。如果你的客户端支持 MCP image content block，也可以直接展示那张图片。
-5. 把邀请卡片（或 card_url）分享给主办方，主办方发给参会者即可完成邀请`,
+5. **同时在聊天中以纯文本形式展示 join_url**（例如 \`https://linka.zone/join/ABC12345\`），并提示主办方："转发给参会者时请同时发图片和这条文字链接——参会者的 Agent 无法解码二维码图像，需要文字链接才能加入。"
+6. 把邀请卡片（或 card_url）+ 纯文本 join_url 分享给主办方，主办方发给参会者即可完成邀请`,
       inputSchema: {
         name: z.string().describe("活动名称"),
         description: z.string().optional().describe("活动描述"),
