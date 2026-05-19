@@ -1,5 +1,6 @@
+"use strict";
 App({
-  globalData: {
-    apiBaseUrl: "http://127.0.0.1:3000",
-  },
+    globalData: {
+        apiBaseUrl: "https://linka.zone",
+    },
 });

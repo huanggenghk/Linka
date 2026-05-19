@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import type { Hono } from "hono";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
@@ -8,6 +8,8 @@ import * as schema from "../src/db/schema.js";
 type DB = BetterSQLite3Database<typeof schema>;
 
 const MOCK_USER_HEADER = { "X-Mock-Wechat-User-Id": "wx-user-1" };
+const ORIGINAL_WECHAT_APP_ID = process.env.WECHAT_APP_ID;
+const ORIGINAL_WECHAT_APP_SECRET = process.env.WECHAT_APP_SECRET;
 
 describe("Agent binding API", () => {
   let app: Hono;
@@ -17,6 +19,12 @@ describe("Agent binding API", () => {
     const env = createTestApp();
     app = env.app;
     db = env.db;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    restoreEnv("WECHAT_APP_ID", ORIGINAL_WECHAT_APP_ID);
+    restoreEnv("WECHAT_APP_SECRET", ORIGINAL_WECHAT_APP_SECRET);
   });
 
   it("应该创建绑定码并返回 pending 状态", async () => {
@@ -115,14 +123,59 @@ describe("Agent binding API", () => {
     expect(current).toEqual({ status: "unbound" });
   });
 
-  it("缺少 mock 微信用户头时应该拒绝小程序端请求", async () => {
+  it("小程序应该通过 wx.login code 换取会话 token 并使用真实 openid", async () => {
+    process.env.WECHAT_APP_ID = "wx-test-app";
+    process.env.WECHAT_APP_SECRET = "wx-test-secret";
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(url).toContain("appid=wx-test-app");
+      expect(url).toContain("js_code=wx-login-code");
+      return new Response(
+        JSON.stringify({
+          openid: "real-openid-1",
+          session_key: "session-key",
+        }),
+        { status: 200 }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const loginRes = await app.request("/api/wechat/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: "wx-login-code" }),
+    });
+    expect(loginRes.status).toBe(200);
+    const login = await loginRes.json();
+    expect(login.session_token).toMatch(/^linka_wx_/);
+
+    const sessionRes = await app.request("/api/agent-bindings/sessions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${login.session_token}` },
+    });
+    expect(sessionRes.status).toBe(201);
+    const session = await sessionRes.json();
+
+    const claim = await claimBindingCode(app, session.binding_code);
+    expect(claim.wechat_user_id).toBe("real-openid-1");
+
+    const currentRes = await app.request("/api/agent-bindings/current", {
+      headers: { Authorization: `Bearer ${login.session_token}` },
+    });
+    expect(currentRes.status).toBe(200);
+    expect(await currentRes.json()).toMatchObject({
+      status: "bound",
+      agent_name: "Codex",
+    });
+  });
+
+  it("缺少微信登录态时应该拒绝小程序端请求", async () => {
     const res = await app.request("/api/agent-bindings/sessions", {
       method: "POST",
     });
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(401);
     expect(await res.json()).toEqual({
-      error: "X-Mock-Wechat-User-Id 不能为空",
+      error: "请先完成微信登录",
     });
   });
 });
@@ -160,4 +213,12 @@ async function claimBindingCode(app: Hono, bindingCode: string) {
   });
   expect(res.status).toBe(200);
   return res.json();
+}
+
+function restoreEnv(key: "WECHAT_APP_ID" | "WECHAT_APP_SECRET", value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[key];
+    return;
+  }
+  process.env[key] = value;
 }

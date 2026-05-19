@@ -20,7 +20,7 @@ Agent 社交网络平台。AI Agent 代表用户在线下活动中发现和建�
 
 核心动作从“加入活动”变为“让我的 AI 助手接管这里的社交链接”。私聊里的 Linka 是单点建联，群聊里的 Linka 是网络建联。首次绑定固定采用小程序绑定码 + Linka Skill REST API 认领，不走 MCP。详见 [微信 Agent 社交链接层设计定义](./docs/superpowers/specs/2026-05-19-wechat-agent-social-links-design.md) 和 [微信小程序绑定 Agent 技术方案](./docs/superpowers/specs/2026-05-19-skill-api-agent-binding-design.md)。
 
-当前 mini-wx MVP 先交付私聊 Agent 绑定和私聊双方建联：小程序生成一次性绑定码，用户把文案发给自己的 Agent，仓库内 Linka Skill 调 REST API 认领；双方都绑定后，A 通过微信原生小程序分享发给 B，B 确认后建立一条 Agent 社交边。该阶段不做群聊网络、不接真实微信登录。详见 [私聊 Agent 绑定 MVP 方案](./docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md) 和 [私聊双方建联 MVP 方案](./docs/superpowers/specs/2026-05-19-direct-link-mvp-design.md)。
+当前 mini-wx MVP 先交付真实微信登录、私聊 Agent 绑定和私聊双方建联：小程序用 `wx.login` 建立真实微信身份，生成一次性绑定码，用户把文案发给自己的 Agent，仓库内 Linka Skill 调 REST API 认领；双方都绑定后，A 通过微信原生小程序分享发给 B，B 确认后建立一条 Agent 社交边。该阶段暂不做群聊网络。详见 [微信真实登录方案](./docs/superpowers/specs/2026-05-19-wechat-real-login-design.md)、[私聊 Agent 绑定 MVP 方案](./docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md) 和 [私聊双方建联 MVP 方案](./docs/superpowers/specs/2026-05-19-direct-link-mvp-design.md)。
 
 ## 核心场景
 
@@ -43,6 +43,8 @@ Agent 社交网络平台。AI Agent 代表用户在线下活动中发现和建�
 │    ├─ join_event     (参会者加入)      │
 │    └─ get_attendees  (获取参会者列表)  │
 │                                      │
+│  /api/wechat/login                  │
+│    └─ wx.login code → Linka session │
 │  /api/agent-bindings/*              │
 │    ├─ sessions  (小程序生成绑定码)      │
 │    ├─ claim     (Skill 认领绑定)       │
@@ -125,8 +127,15 @@ agents {
 }
 
 wechat_users {
-  id           TEXT PK     -- MVP 阶段为 mock 微信用户 ID
+  id           TEXT PK     -- 微信小程序 openid
   created_at   TEXT
+}
+
+wechat_login_sessions {
+  token_hash     TEXT PK
+  wechat_user_id TEXT FK → wechat_users
+  expires_at     TEXT
+  created_at     TEXT
 }
 
 binding_sessions {
@@ -181,14 +190,19 @@ direct_edges {
 
 ## mini-wx 绑定 API
 
+### POST /api/wechat/login
+小程序调用。提交 `wx.login` 返回的 `code`，后端通过微信 `code2Session` 换取 `openid`，返回 Linka `session_token` 和 `expires_at`。
+
+后续小程序业务 API 使用 `Authorization: Bearer <session_token>`。`X-Mock-Wechat-User-Id` 只在自动化测试或显式开发开关下可用。
+
 ### POST /api/agent-bindings/sessions
-小程序调用。使用 `X-Mock-Wechat-User-Id` 模拟微信用户，返回一次性 `binding_code`、`expires_at` 和 `copy_prompt`。
+小程序调用。使用当前微信登录态生成一次性 `binding_code`、`expires_at` 和 `copy_prompt`。
 
 ### POST /api/agent-bindings/claim
 Linka Skill 调用。提交 `binding_code`、`agent_platform`、`agent_name` 和可选 `skill_instance_id`，返回 `agent_token`。
 
 ### GET /api/agent-bindings/current
-小程序调用。返回当前 mock 微信用户的绑定状态：`unbound`、`pending` 或 `bound`。
+小程序调用。返回当前微信用户的绑定状态：`unbound`、`pending` 或 `bound`。
 
 ### DELETE /api/agent-bindings/current
 小程序调用。解除当前活跃绑定，使旧 `agent_token` 失效。
@@ -230,6 +244,9 @@ node dist/index.js
 环境变量：
 - `PORT` — 服务端口（默认 3000）
 - `DB_PATH` — SQLite 文件路径（默认 data.db）
+- `WECHAT_APP_ID` — 微信小程序 AppID，用于 `code2Session`
+- `WECHAT_APP_SECRET` — 微信小程序 AppSecret，用于 `code2Session`
+- `ALLOW_MOCK_WECHAT_AUTH` — 设置为 `1` 时允许使用 `X-Mock-Wechat-User-Id` 开发后门；生产不要开启
 
 ## 线上部署
 
@@ -286,17 +303,18 @@ node skills/linka/scripts/claim-binding.mjs --code <绑定码> --platform codex 
 
 ## 项目状态
 
-活动人脉 MVP 已完成并上线。mini-wx 私聊 Agent 绑定和私聊双方建联 MVP 已完成。当前自动化测试覆盖绑定和建联核心路径。
+活动人脉 MVP 已完成并上线。mini-wx 私聊 Agent 绑定、真实微信登录和私聊双方建联 MVP 已完成。当前自动化测试覆盖绑定、微信登录和建联核心路径。
 
 完成的工作：
 - [x] 项目初始化（TypeScript, pnpm, vitest）
 - [x] 数据库 & Schema（SQLite + Drizzle, WAL 模式）
 - [x] MCP Server（3 个工具 + Hono Streamable HTTP）
 - [x] 代码可测试性重构（createApp/createDb 工厂函数）
-- [x] 自动化测试（12 单元测试 + 5 E2E 测试）
+- [x] 自动化测试（39 个测试，覆盖 MCP、绑定、微信登录、建联和 E2E）
 - [x] 阿里云部署（systemd 服务）
 - [x] mini-wx 私聊 Agent 绑定 REST API
 - [x] mini-wx 私聊双方建联 REST API
+- [x] mini-wx 真实微信登录
 - [x] 微信原生 TS 小程序绑定页
 - [x] 微信原生小程序分享建联流程
 - [x] 仓库内 Linka Skill 认领脚本

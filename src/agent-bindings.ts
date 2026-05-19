@@ -1,14 +1,14 @@
-import type { Context, Hono } from "hono";
+import type { Hono } from "hono";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { randomBytes, randomInt } from "node:crypto";
 import { v4 as uuidv4 } from "uuid";
 import * as z from "zod/v4";
 import * as schema from "./db/schema.js";
+import { readJson, requireWechatUserId } from "./wechat-auth.js";
 
 type DB = BetterSQLite3Database<typeof schema>;
 
-export const MOCK_WECHAT_USER_HEADER = "X-Mock-Wechat-User-Id";
 const BINDING_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const BINDING_CODE_LENGTH = 6;
 const BINDING_TTL_MS = 10 * 60 * 1000;
@@ -22,12 +22,11 @@ const claimSchema = z.object({
 
 export function registerAgentBindingRoutes(app: Hono, database: DB) {
   app.post("/api/agent-bindings/sessions", async (c) => {
-    const wechatUserId = getMockWechatUserId(c);
-    if (!wechatUserId) {
-      return c.json({ error: `${MOCK_WECHAT_USER_HEADER} 不能为空` }, 400);
+    const auth = requireWechatUserId(c, database);
+    if (!auth.ok) {
+      return c.json({ error: auth.error }, auth.status);
     }
-
-    ensureWechatUser(database, wechatUserId);
+    const wechatUserId = auth.wechatUserId;
 
     const id = uuidv4();
     const bindingCode = createUniqueBindingCode(database);
@@ -123,10 +122,11 @@ export function registerAgentBindingRoutes(app: Hono, database: DB) {
   });
 
   app.get("/api/agent-bindings/current", async (c) => {
-    const wechatUserId = getMockWechatUserId(c);
-    if (!wechatUserId) {
-      return c.json({ error: `${MOCK_WECHAT_USER_HEADER} 不能为空` }, 400);
+    const auth = requireWechatUserId(c, database);
+    if (!auth.ok) {
+      return c.json({ error: auth.error }, auth.status);
     }
+    const wechatUserId = auth.wechatUserId;
 
     const activeBinding = getActiveBinding(database, wechatUserId);
     if (activeBinding) {
@@ -164,10 +164,11 @@ export function registerAgentBindingRoutes(app: Hono, database: DB) {
   });
 
   app.delete("/api/agent-bindings/current", async (c) => {
-    const wechatUserId = getMockWechatUserId(c);
-    if (!wechatUserId) {
-      return c.json({ error: `${MOCK_WECHAT_USER_HEADER} 不能为空` }, 400);
+    const auth = requireWechatUserId(c, database);
+    if (!auth.ok) {
+      return c.json({ error: auth.error }, auth.status);
     }
+    const wechatUserId = auth.wechatUserId;
 
     const now = new Date().toISOString();
     database
@@ -183,20 +184,6 @@ export function registerAgentBindingRoutes(app: Hono, database: DB) {
 
     return c.json({ status: "unbound" });
   });
-}
-
-export function getMockWechatUserId(c: Context) {
-  const value = c.req.header(MOCK_WECHAT_USER_HEADER)?.trim();
-  if (!value || value.length > 128) return null;
-  return value;
-}
-
-export function ensureWechatUser(database: DB, wechatUserId: string) {
-  database
-    .insert(schema.wechatUsers)
-    .values({ id: wechatUserId })
-    .onConflictDoNothing()
-    .run();
 }
 
 export function getActiveBinding(database: DB, wechatUserId: string) {
@@ -236,12 +223,4 @@ function createBindingCode() {
 
 function createAgentToken() {
   return `linka_agent_${randomBytes(32).toString("base64url")}`;
-}
-
-export async function readJson(c: Context) {
-  try {
-    return await c.req.json();
-  } catch {
-    return null;
-  }
 }

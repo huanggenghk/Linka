@@ -35,6 +35,13 @@ const INIT_SQL = `
     created_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS wechat_login_sessions (
+    token_hash TEXT PRIMARY KEY,
+    wechat_user_id TEXT NOT NULL REFERENCES wechat_users(id),
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS binding_sessions (
     id TEXT PRIMARY KEY,
     wechat_user_id TEXT NOT NULL REFERENCES wechat_users(id),

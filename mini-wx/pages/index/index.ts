@@ -35,17 +35,23 @@ type DirectEdges = {
   }>;
 };
 
+type WechatLoginResponse = {
+  session_token: string;
+  expires_at: string;
+};
+
 const API_BASE_KEY = "linka_api_base_url_local";
-const MOCK_USER_KEY = "linka_mock_wechat_user_id";
-const DEFAULT_API_BASE_URL = "http://127.0.0.1:3000";
-const DEFAULT_MOCK_USER_ID = "wx-demo-user";
+const SESSION_TOKEN_KEY = "linka_wechat_session_token";
+const SESSION_EXPIRES_KEY = "linka_wechat_session_expires_at";
+const DEFAULT_API_BASE_URL = "https://linka.zone";
 
 let pollTimer: number | undefined;
 
 Page({
   data: {
     apiBaseUrl: DEFAULT_API_BASE_URL,
-    mockWechatUserId: DEFAULT_MOCK_USER_ID,
+    sessionToken: "",
+    sessionExpiresAt: "",
     status: "unbound" as BindingStatus,
     bindingCode: "",
     expiresAt: "",
@@ -63,17 +69,18 @@ Page({
     incomingShareViewerStatus: "",
     incomingShareAgentName: "",
     incomingAccepted: false,
+    authLoading: false,
     loading: false,
     error: "",
   },
 
   onLoad(options: { share_id?: string } = {}) {
     const apiBaseUrl = readStringStorage(API_BASE_KEY, DEFAULT_API_BASE_URL);
-    const mockWechatUserId = readStringStorage(MOCK_USER_KEY, DEFAULT_MOCK_USER_ID);
+    const sessionToken = readStringStorage(SESSION_TOKEN_KEY, "");
+    const sessionExpiresAt = readStringStorage(SESSION_EXPIRES_KEY, "");
     const incomingShareId = options.share_id || "";
-    this.setData({ apiBaseUrl, mockWechatUserId, incomingShareId });
-    this.refreshStatus();
-    if (incomingShareId) this.loadIncomingShare();
+    this.setData({ apiBaseUrl, sessionToken, sessionExpiresAt, incomingShareId });
+    this.bootstrap();
   },
 
   onShow() {
@@ -91,13 +98,20 @@ Page({
   onApiBaseInput(event: { detail: { value: string } }) {
     const value = event.detail.value.trim();
     wx.setStorageSync(API_BASE_KEY, value);
+    clearWechatSession(this);
     this.setData({ apiBaseUrl: value });
   },
 
-  onMockUserInput(event: { detail: { value: string } }) {
-    const value = event.detail.value.trim();
-    wx.setStorageSync(MOCK_USER_KEY, value);
-    this.setData({ mockWechatUserId: value });
+  async bootstrap() {
+    try {
+      await ensureWechatLogin(this);
+      await this.refreshStatus();
+      if (this.data.incomingShareId) await this.loadIncomingShare();
+    } catch (error) {
+      this.setData({
+        error: error instanceof Error ? error.message : "微信登录失败",
+      });
+    }
   },
 
   async refreshStatus() {
@@ -307,33 +321,111 @@ async function withLoading(page: any, action: () => Promise<void>) {
   }
 }
 
-function request<T>(
+async function request<T>(
   page: any,
   path: string,
   method: "GET" | "POST" | "DELETE" = "GET",
-  data?: unknown
+  data?: unknown,
+  retryOnUnauthorized = true
 ): Promise<T> {
+  await ensureWechatLogin(page);
   const baseUrl = page.data.apiBaseUrl.replace(/\/$/, "");
-  return new Promise((resolve, reject) => {
-    wx.request({
-      url: `${baseUrl}${path}`,
-      method,
-      data,
-      header: {
-        "Content-Type": "application/json",
-        "X-Mock-Wechat-User-Id": page.data.mockWechatUserId,
-      },
+  const res = await wxRequest(`${baseUrl}${path}`, method, data, {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${page.data.sessionToken}`,
+  });
+
+  if (res.statusCode >= 200 && res.statusCode < 300) {
+    return res.data as T;
+  }
+
+  if (res.statusCode === 401 && retryOnUnauthorized) {
+    clearWechatSession(page);
+    await ensureWechatLogin(page, true);
+    return request<T>(page, path, method, data, false);
+  }
+
+  const responseData = res.data as { error?: string };
+  throw new Error(responseData?.error || `请求失败：${res.statusCode}`);
+}
+
+async function ensureWechatLogin(page: any, force = false) {
+  const currentToken = page.data.sessionToken;
+  const expiresAt = page.data.sessionExpiresAt;
+  if (!force && currentToken && !isExpired(expiresAt)) return currentToken;
+
+  page.setData({ authLoading: true });
+  try {
+    const code = await wxLogin();
+    const baseUrl = page.data.apiBaseUrl.replace(/\/$/, "");
+    const login = await requestWechatLogin(baseUrl, code);
+
+    wx.setStorageSync(SESSION_TOKEN_KEY, login.session_token);
+    wx.setStorageSync(SESSION_EXPIRES_KEY, login.expires_at);
+    page.setData({
+      sessionToken: login.session_token,
+      sessionExpiresAt: login.expires_at,
+    });
+    return login.session_token;
+  } finally {
+    page.setData({ authLoading: false });
+  }
+}
+
+function wxLogin() {
+  return new Promise<string>((resolve, reject) => {
+    wx.login({
       success: (res) => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(res.data as T);
+        if (res.code) {
+          resolve(res.code);
           return;
         }
-        const data = res.data as { error?: string };
-        reject(new Error(data?.error || `请求失败：${res.statusCode}`));
+        reject(new Error(res.errMsg || "微信登录失败"));
       },
+      fail: (err) => reject(new Error(err.errMsg || "微信登录失败")),
+    });
+  });
+}
+
+async function requestWechatLogin(baseUrl: string, code: string) {
+  const res = await wxRequest(`${baseUrl}/api/wechat/login`, "POST", { code }, {
+    "Content-Type": "application/json",
+  });
+  if (res.statusCode >= 200 && res.statusCode < 300) {
+    return res.data as WechatLoginResponse;
+  }
+
+  const responseData = res.data as { error?: string };
+  throw new Error(responseData?.error || `微信登录失败：${res.statusCode}`);
+}
+
+function wxRequest(
+  url: string,
+  method: "GET" | "POST" | "DELETE",
+  data?: unknown,
+  header?: Record<string, string>
+) {
+  return new Promise<{ statusCode: number; data: unknown }>((resolve, reject) => {
+    wx.request({
+      url,
+      method,
+      data,
+      header,
+      success: resolve,
       fail: (err) => reject(new Error(err.errMsg || "网络请求失败")),
     });
   });
+}
+
+function clearWechatSession(page: any) {
+  wx.removeStorageSync(SESSION_TOKEN_KEY);
+  wx.removeStorageSync(SESSION_EXPIRES_KEY);
+  page.setData({ sessionToken: "", sessionExpiresAt: "" });
+}
+
+function isExpired(expiresAt: string) {
+  if (!expiresAt) return false;
+  return new Date(expiresAt).getTime() - Date.now() < 60 * 1000;
 }
 
 function copyText(text: string, title: string) {

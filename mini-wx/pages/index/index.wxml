@@ -10,11 +10,11 @@
       <text class="label">API 地址</text>
       <input class="input" value="{{apiBaseUrl}}" bindinput="onApiBaseInput" />
     </view>
-    <view class="field">
-      <text class="label">Mock 微信用户 ID</text>
-      <input class="input mono" value="{{mockWechatUserId}}" bindinput="onMockUserInput" />
+    <view class="identity-row">
+      <text class="label">微信身份</text>
+      <text class="identity-status">{{sessionToken ? '已登录' : '未登录'}}</text>
     </view>
-    <button class="secondary" bindtap="refreshStatus" loading="{{loading}}">刷新状态</button>
+    <button class="secondary" bindtap="refreshStatus" loading="{{loading || authLoading}}">刷新状态</button>
   </view>
 
   <view class="status status-{{status}}">

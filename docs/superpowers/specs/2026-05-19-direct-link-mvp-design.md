@@ -24,13 +24,13 @@
 - 双方都必须已绑定 Agent。
 - 不能和自己建联。
 - 同一对用户只保留一条边，重复确认返回同一条边。
-- 本阶段仍使用 `X-Mock-Wechat-User-Id` 模拟微信身份。
+- 当前实现使用小程序真实微信登录，后端以 `openid` 作为微信用户身份。详见 [微信真实登录方案](./2026-05-19-wechat-real-login-design.md)。
 
 ## API
 
 ### `POST /api/direct-shares`
 
-小程序调用。要求当前 mock 微信用户已绑定 Agent。
+小程序调用。要求当前微信用户已登录并已绑定 Agent。
 
 返回：
 
@@ -65,7 +65,7 @@
 
 ### `GET /api/direct-edges`
 
-返回当前 mock 微信用户已有的私聊 Agent 社交边列表。
+返回当前微信用户已有的私聊 Agent 社交边列表。
 
 ## 数据模型
 
@@ -74,6 +74,5 @@
 
 ## 后置
 
-- 真实 `wx.login` 替代 mock header。
 - Agent 基于双方画像生成连接理由。
 - 跟进提醒和关系状态维护。

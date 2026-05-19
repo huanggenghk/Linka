@@ -10,8 +10,13 @@ declare const wx: {
     success?: (res: { statusCode: number; data: unknown }) => void;
     fail?: (err: { errMsg?: string }) => void;
   }): void;
+  login(options: {
+    success?: (res: { code?: string; errMsg?: string }) => void;
+    fail?: (err: { errMsg?: string }) => void;
+  }): void;
   getStorageSync(key: string): unknown;
   setStorageSync(key: string, value: unknown): void;
+  removeStorageSync(key: string): void;
   setClipboardData(options: {
     data: string;
     success?: () => void;

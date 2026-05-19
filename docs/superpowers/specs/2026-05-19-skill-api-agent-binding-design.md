@@ -4,7 +4,7 @@
 
 mini-wx 阶段固定采用“Linka Skill 调 REST API 完成绑定”的方案。首次绑定不走 MCP。
 
-当前实现的 MVP 只交付私聊 Agent 绑定闭环：小程序生成绑定码、Skill 认领、保存 `agent_token`、小程序显示已连接。真实微信登录、私聊双方建边、群聊网络都后置。
+当前实现的 MVP 已交付真实微信登录、私聊 Agent 绑定闭环和私聊双方建边：小程序通过 `wx.login` 建立真实微信身份，生成绑定码；Skill 认领并保存 `agent_token`；小程序显示已连接并支持私聊建联。群聊网络后置。
 
 绑定的本质是建立一条可信关系：
 
@@ -15,7 +15,7 @@ mini-wx 阶段固定采用“Linka Skill 调 REST API 完成绑定”的方案�
 ## 绑定流程
 
 1. 用户在微信小程序点击“连接我的 AI 助手”。
-2. 小程序通过微信登录确认用户身份，Linka 后端拿到该用户的微信身份。MVP 阶段先用 `X-Mock-Wechat-User-Id` 模拟微信用户身份。
+2. 小程序通过微信登录确认用户身份，Linka 后端拿到当前小程序下的微信 `openid`。
 3. Linka 后端创建一个 `binding_session`，生成一次性 `binding_code`，默认 10 分钟过期，只能使用一次。
 4. 小程序展示并复制一段绑定文案，例如：“请使用 Linka Skill 绑定我的账号，绑定码是 XXXX。”
 5. 用户把这段文案发给自己的 Agent，触发 Linka Skill。

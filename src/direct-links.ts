@@ -4,20 +4,18 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { randomBytes } from "node:crypto";
 import { v4 as uuidv4 } from "uuid";
 import * as schema from "./db/schema.js";
-import {
-  MOCK_WECHAT_USER_HEADER,
-  getActiveBinding,
-  getMockWechatUserId,
-} from "./agent-bindings.js";
+import { getActiveBinding } from "./agent-bindings.js";
+import { optionalWechatUserId, requireWechatUserId } from "./wechat-auth.js";
 
 type DB = BetterSQLite3Database<typeof schema>;
 
 export function registerDirectLinkRoutes(app: Hono, database: DB) {
   app.post("/api/direct-shares", async (c) => {
-    const wechatUserId = getMockWechatUserId(c);
-    if (!wechatUserId) {
-      return c.json({ error: `${MOCK_WECHAT_USER_HEADER} 不能为空` }, 400);
+    const auth = requireWechatUserId(c, database);
+    if (!auth.ok) {
+      return c.json({ error: auth.error }, auth.status);
     }
+    const wechatUserId = auth.wechatUserId;
 
     const initiatorBinding = getActiveBinding(database, wechatUserId);
     if (!initiatorBinding) {
@@ -62,7 +60,11 @@ export function registerDirectLinkRoutes(app: Hono, database: DB) {
       return c.json({ error: "发起方尚未绑定 AI 助手" }, 410);
     }
 
-    const viewerWechatUserId = getMockWechatUserId(c);
+    const viewerAuth = optionalWechatUserId(c, database);
+    if (!viewerAuth.ok) {
+      return c.json({ error: viewerAuth.error }, viewerAuth.status);
+    }
+    const viewerWechatUserId = viewerAuth.wechatUserId;
     const viewerBinding = viewerWechatUserId
       ? getActiveBinding(database, viewerWechatUserId)
       : null;
@@ -82,10 +84,11 @@ export function registerDirectLinkRoutes(app: Hono, database: DB) {
   });
 
   app.post("/api/direct-shares/:shareId/accept", async (c) => {
-    const receiverWechatUserId = getMockWechatUserId(c);
-    if (!receiverWechatUserId) {
-      return c.json({ error: `${MOCK_WECHAT_USER_HEADER} 不能为空` }, 400);
+    const auth = requireWechatUserId(c, database);
+    if (!auth.ok) {
+      return c.json({ error: auth.error }, auth.status);
     }
+    const receiverWechatUserId = auth.wechatUserId;
 
     const receiverBinding = getActiveBinding(database, receiverWechatUserId);
     if (!receiverBinding) {
@@ -132,10 +135,11 @@ export function registerDirectLinkRoutes(app: Hono, database: DB) {
   });
 
   app.get("/api/direct-edges", async (c) => {
-    const wechatUserId = getMockWechatUserId(c);
-    if (!wechatUserId) {
-      return c.json({ error: `${MOCK_WECHAT_USER_HEADER} 不能为空` }, 400);
+    const auth = requireWechatUserId(c, database);
+    if (!auth.ok) {
+      return c.json({ error: auth.error }, auth.status);
     }
+    const wechatUserId = auth.wechatUserId;
 
     const binding = getActiveBinding(database, wechatUserId);
     if (!binding) {

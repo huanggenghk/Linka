@@ -47,6 +47,22 @@
   margin-top: 20rpx;
 }
 
+.identity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-top: 22rpx;
+  padding-top: 22rpx;
+  border-top: 1rpx solid #e8e8e5;
+}
+
+.identity-status {
+  color: #2d9f6f;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
 .label,
 .status-label,
 .prompt-label {

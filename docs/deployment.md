@@ -61,12 +61,15 @@ pnpm build
 #    以前只排除 data/*.db 导致 --delete 把未 checkpoint 的 WAL 删掉，丢数据）
 rsync -avz --delete \
   --exclude='node_modules' \
+  --exclude='.pnpm-store' \
+  --exclude='.DS_Store' \
+  --exclude='data.db*' \
   --exclude='data/' \
   --exclude='data.archived-*' \
   --exclude='.git' \
   --exclude='web/dist' \
   --exclude='web/node_modules' \
-  --exclude='.claude/worktrees' \
+  --exclude='.claude' \
   --exclude='.superpowers' \
   . root@123.56.163.63:/root/Linka/
 
@@ -94,6 +97,7 @@ WorkingDirectory=/root/Linka
 ExecStart=/usr/local/bin/node dist/index.js
 Environment=DB_PATH=/var/lib/linka/linka.db
 Environment=PORT=3000
+EnvironmentFile=-/etc/linka/linka.env
 Restart=always
 RestartSec=5
 
@@ -109,6 +113,21 @@ systemctl restart linka.service   # 重启
 systemctl stop linka.service      # 停止
 journalctl -u linka.service -f    # 查看实时日志
 ```
+
+微信小程序真实登录依赖 `/etc/linka/linka.env`：
+
+```bash
+mkdir -p /etc/linka
+cat >/etc/linka/linka.env <<'EOF'
+WECHAT_APP_ID=你的微信小程序 AppID
+WECHAT_APP_SECRET=你的微信小程序 AppSecret
+EOF
+chmod 600 /etc/linka/linka.env
+systemctl daemon-reload
+systemctl restart linka.service
+```
+
+不要把 `WECHAT_APP_SECRET` 写入仓库。小程序真机测试时，还需要在微信小程序后台把 `https://linka.zone` 加入 request 合法域名。
 
 ## Nginx 配置
 
@@ -145,9 +164,10 @@ pnpm build && \
 cd web && pnpm install && npx vite build && cd .. && \
 scp -r web/dist/* root@123.56.163.63:/var/www/linka/ && \
 rsync -avz --delete \
-  --exclude='node_modules' --exclude='data/' --exclude='data.archived-*' --exclude='.git' \
+  --exclude='node_modules' --exclude='.pnpm-store' --exclude='.DS_Store' --exclude='data.db*' \
+  --exclude='data/' --exclude='data.archived-*' --exclude='.git' \
   --exclude='web/dist' --exclude='web/node_modules' \
-  --exclude='.claude/worktrees' --exclude='.superpowers' \
+  --exclude='.claude' --exclude='.superpowers' \
   . root@123.56.163.63:/root/Linka/ && \
 ssh root@123.56.163.63 "cd /root/Linka && pnpm install --prod && systemctl restart linka.service && nginx -t && systemctl reload nginx && curl -s http://localhost:3000/health"
 ```

@@ -11,6 +11,7 @@ import * as schema from "./db/schema.js";
 import { renderJoinPage } from "./views/join.js";
 import { registerAgentBindingRoutes } from "./agent-bindings.js";
 import { registerDirectLinkRoutes } from "./direct-links.js";
+import { registerWechatAuthRoutes } from "./wechat-auth.js";
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -66,6 +67,7 @@ export function createApp(db?: DB) {
         "mcp-session-id",
         "Last-Event-ID",
         "mcp-protocol-version",
+        "Authorization",
         "X-Mock-Wechat-User-Id",
       ],
       exposeHeaders: ["mcp-session-id", "mcp-protocol-version"],
@@ -87,6 +89,7 @@ export function createApp(db?: DB) {
     });
   });
 
+  registerWechatAuthRoutes(app, database);
   registerAgentBindingRoutes(app, database);
   registerDirectLinkRoutes(app, database);
 

@@ -42,7 +42,18 @@ export const agents = sqliteTable(
 );
 
 export const wechatUsers = sqliteTable("wechat_users", {
-  id: text("id").primaryKey(), // Mock WeChat user id for mini-wx MVP
+  id: text("id").primaryKey(), // WeChat openid for the mini program
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const wechatLoginSessions = sqliteTable("wechat_login_sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  wechatUserId: text("wechat_user_id")
+    .notNull()
+    .references(() => wechatUsers.id),
+  expiresAt: text("expires_at").notNull(),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
