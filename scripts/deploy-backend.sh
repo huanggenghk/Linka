@@ -62,4 +62,15 @@ rsync -az --delete \
   --exclude='mini-wx/project.private.config.json' \
   ./ "$remote_host:$remote_dir/"
 
-ssh "$remote_host" "pnpm --dir '$remote_dir' install --prod && systemctl restart '$service_name' && systemctl is-active '$service_name' && curl -s 'http://127.0.0.1:$health_port/health'"
+ssh "$remote_host" "pnpm --dir '$remote_dir' install --prod && systemctl restart '$service_name' && systemctl is-active '$service_name'"
+
+for attempt in {1..10}; do
+  if ssh "$remote_host" "curl -fsS 'http://127.0.0.1:$health_port/health'"; then
+    echo
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "Deploy failed: health check did not pass for $service_name on port $health_port." >&2
+exit 1
