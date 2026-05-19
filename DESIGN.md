@@ -100,3 +100,4 @@
 | 2026-04-12 | Hero: value-first, no code block | Users care about what they get, not JSON config. Code block moved to docs/FAQ |
 | 2026-04-12 | Organizer/Attendee as separate modules | Each role gets its own focused section instead of side-by-side split |
 | 2026-04-12 | User left, AI right in chat UI | Natural reading flow: user initiates on left, AI responds on right |
+| 2026-05-19 | 下一阶段产品方向：微信 Agent 社交链接层 | Linka v1 验证活动人脉 MVP；v2 面向微信生态，小程序做前台，Agent 做后台，私聊建立边、群聊形成网 |
