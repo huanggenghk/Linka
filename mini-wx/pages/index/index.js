@@ -1,6 +1,6 @@
-const API_BASE_KEY = "linka_api_base_url";
+const API_BASE_KEY = "linka_api_base_url_local";
 const MOCK_USER_KEY = "linka_mock_wechat_user_id";
-const DEFAULT_API_BASE_URL = "https://linka.zone";
+const DEFAULT_API_BASE_URL = "http://127.0.0.1:3000";
 const DEFAULT_MOCK_USER_ID = "wx-demo-user";
 
 let pollTimer;
