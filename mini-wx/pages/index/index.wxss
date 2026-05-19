@@ -170,6 +170,53 @@
   font-size: 25rpx;
 }
 
+.direct-panel {
+  border-top: 6rpx solid #f5ebd9;
+}
+
+.section-title {
+  color: #1a1a1a;
+  font-size: 32rpx;
+  font-weight: 800;
+}
+
+.section-copy {
+  margin-top: 12rpx;
+  color: #6b6b6b;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+.success-line {
+  margin-top: 20rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 12rpx;
+  background: #edf7f2;
+  color: #2d9f6f;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.edge-row {
+  margin-top: 18rpx;
+  padding: 20rpx;
+  border: 1rpx solid #e8e8e5;
+  border-radius: 12rpx;
+  background: #fafaf8;
+}
+
+.edge-name {
+  color: #1a1a1a;
+  font-size: 29rpx;
+  font-weight: 800;
+}
+
+.edge-meta {
+  margin-top: 6rpx;
+  color: #999999;
+  font-size: 23rpx;
+}
+
 .error {
   margin-top: 24rpx;
   padding: 20rpx;
@@ -177,4 +224,8 @@
   background: #fdeeed;
   color: #d45a5a;
   font-size: 26rpx;
+}
+
+.inline-error {
+  margin-top: 16rpx;
 }

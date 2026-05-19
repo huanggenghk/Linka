@@ -8,7 +8,7 @@ import * as schema from "./db/schema.js";
 
 type DB = BetterSQLite3Database<typeof schema>;
 
-const MOCK_WECHAT_USER_HEADER = "X-Mock-Wechat-User-Id";
+export const MOCK_WECHAT_USER_HEADER = "X-Mock-Wechat-User-Id";
 const BINDING_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const BINDING_CODE_LENGTH = 6;
 const BINDING_TTL_MS = 10 * 60 * 1000;
@@ -185,13 +185,13 @@ export function registerAgentBindingRoutes(app: Hono, database: DB) {
   });
 }
 
-function getMockWechatUserId(c: Context) {
+export function getMockWechatUserId(c: Context) {
   const value = c.req.header(MOCK_WECHAT_USER_HEADER)?.trim();
   if (!value || value.length > 128) return null;
   return value;
 }
 
-function ensureWechatUser(database: DB, wechatUserId: string) {
+export function ensureWechatUser(database: DB, wechatUserId: string) {
   database
     .insert(schema.wechatUsers)
     .values({ id: wechatUserId })
@@ -199,7 +199,7 @@ function ensureWechatUser(database: DB, wechatUserId: string) {
     .run();
 }
 
-function getActiveBinding(database: DB, wechatUserId: string) {
+export function getActiveBinding(database: DB, wechatUserId: string) {
   return database
     .select()
     .from(schema.agentBindings)
@@ -238,7 +238,7 @@ function createAgentToken() {
   return `linka_agent_${randomBytes(32).toString("base64url")}`;
 }
 
-async function readJson(c: Context) {
+export async function readJson(c: Context) {
   try {
     return await c.req.json();
   } catch {

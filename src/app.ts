@@ -10,6 +10,7 @@ import { count, desc, eq } from "drizzle-orm";
 import * as schema from "./db/schema.js";
 import { renderJoinPage } from "./views/join.js";
 import { registerAgentBindingRoutes } from "./agent-bindings.js";
+import { registerDirectLinkRoutes } from "./direct-links.js";
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -87,6 +88,7 @@ export function createApp(db?: DB) {
   });
 
   registerAgentBindingRoutes(app, database);
+  registerDirectLinkRoutes(app, database);
 
   app.get("/join/:code", async (c) => {
     const code = c.req.param("code");

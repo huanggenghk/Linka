@@ -15,6 +15,26 @@ type CurrentBinding =
       bound_at: string;
     };
 
+type DirectShare = {
+  share_id: string;
+  share_path: string;
+};
+
+type DirectShareDetail = {
+  viewer_status: "self" | "bound" | "unbound";
+  initiator_agent_name: string;
+};
+
+type DirectEdges = {
+  edges: Array<{
+    edge_id: string;
+    peer_wechat_user_id: string;
+    peer_agent_platform: string | null;
+    peer_agent_name: string | null;
+    created_at: string;
+  }>;
+};
+
 const API_BASE_KEY = "linka_api_base_url_local";
 const MOCK_USER_KEY = "linka_mock_wechat_user_id";
 const DEFAULT_API_BASE_URL = "http://127.0.0.1:3000";
@@ -33,15 +53,27 @@ Page({
     agentPlatform: "",
     agentName: "",
     boundAt: "",
+    directShareId: "",
+    directSharePath: "",
+    directLoading: false,
+    directEdges: [],
+    incomingShareId: "",
+    incomingShareLoading: false,
+    incomingShareError: "",
+    incomingShareViewerStatus: "",
+    incomingShareAgentName: "",
+    incomingAccepted: false,
     loading: false,
     error: "",
   },
 
-  onLoad() {
+  onLoad(options: { share_id?: string } = {}) {
     const apiBaseUrl = readStringStorage(API_BASE_KEY, DEFAULT_API_BASE_URL);
     const mockWechatUserId = readStringStorage(MOCK_USER_KEY, DEFAULT_MOCK_USER_ID);
-    this.setData({ apiBaseUrl, mockWechatUserId });
+    const incomingShareId = options.share_id || "";
+    this.setData({ apiBaseUrl, mockWechatUserId, incomingShareId });
     this.refreshStatus();
+    if (incomingShareId) this.loadIncomingShare();
   },
 
   onShow() {
@@ -113,6 +145,56 @@ Page({
       },
     });
   },
+
+  async prepareDirectShare() {
+    await ensureDirectShare(this, true);
+  },
+
+  async loadIncomingShare() {
+    if (!this.data.incomingShareId) return;
+    this.setData({ incomingShareLoading: true, incomingShareError: "" });
+    try {
+      const detail = await request<DirectShareDetail>(
+        this,
+        `/api/direct-shares/${this.data.incomingShareId}`
+      );
+      this.setData({
+        incomingShareViewerStatus: detail.viewer_status,
+        incomingShareAgentName: detail.initiator_agent_name,
+        incomingShareError: "",
+      });
+    } catch (error) {
+      this.setData({
+        incomingShareError: error instanceof Error ? error.message : "读取邀请失败",
+      });
+    } finally {
+      this.setData({ incomingShareLoading: false });
+    }
+  },
+
+  async acceptDirectShare() {
+    if (!this.data.incomingShareId) return;
+    this.setData({ directLoading: true, incomingShareError: "" });
+    try {
+      await request(this, `/api/direct-shares/${this.data.incomingShareId}/accept`, "POST");
+      this.setData({ incomingAccepted: true });
+      await loadDirectEdges(this);
+      wx.showToast({ title: "已建立连接", icon: "success" });
+    } catch (error) {
+      this.setData({
+        incomingShareError: error instanceof Error ? error.message : "建联失败",
+      });
+    } finally {
+      this.setData({ directLoading: false });
+    }
+  },
+
+  onShareAppMessage() {
+    return {
+      title: "和我建立 Linka Agent 社交链接",
+      path: this.data.directSharePath || "/pages/index/index",
+    };
+  },
 });
 
 function applyBindingState(page: any, current: CurrentBinding) {
@@ -128,6 +210,9 @@ function applyBindingState(page: any, current: CurrentBinding) {
       boundAt: current.bound_at,
       error: "",
     });
+    ensureDirectShare(page);
+    loadDirectEdges(page);
+    if (page.data.incomingShareId) page.loadIncomingShare();
     return;
   }
 
@@ -155,8 +240,39 @@ function applyBindingState(page: any, current: CurrentBinding) {
     agentPlatform: "",
     agentName: "",
     boundAt: "",
+    directShareId: "",
+    directSharePath: "",
+    directEdges: [],
     error: "",
   });
+}
+
+async function ensureDirectShare(page: any, showToast = false) {
+  if (page.data.directShareId || page.data.directLoading) return;
+  page.setData({ directLoading: true });
+  try {
+    const share = await request<DirectShare>(page, "/api/direct-shares", "POST");
+    page.setData({
+      directShareId: share.share_id,
+      directSharePath: share.share_path,
+    });
+    if (showToast) wx.showToast({ title: "可以分享给好友了", icon: "success" });
+  } catch (error) {
+    page.setData({
+      error: error instanceof Error ? error.message : "准备分享失败",
+    });
+  } finally {
+    page.setData({ directLoading: false });
+  }
+}
+
+async function loadDirectEdges(page: any) {
+  try {
+    const data = await request<DirectEdges>(page, "/api/direct-edges");
+    page.setData({ directEdges: data.edges || [] });
+  } catch {
+    page.setData({ directEdges: [] });
+  }
 }
 
 function startPolling(page: any) {
@@ -194,13 +310,15 @@ async function withLoading(page: any, action: () => Promise<void>) {
 function request<T>(
   page: any,
   path: string,
-  method: "GET" | "POST" | "DELETE" = "GET"
+  method: "GET" | "POST" | "DELETE" = "GET",
+  data?: unknown
 ): Promise<T> {
   const baseUrl = page.data.apiBaseUrl.replace(/\/$/, "");
   return new Promise((resolve, reject) => {
     wx.request({
       url: `${baseUrl}${path}`,
       method,
+      data,
       header: {
         "Content-Type": "application/json",
         "X-Mock-Wechat-User-Id": page.data.mockWechatUserId,

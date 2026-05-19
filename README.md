@@ -20,7 +20,7 @@ Agent 社交网络平台。AI Agent 代表用户在线下活动中发现和建�
 
 核心动作从“加入活动”变为“让我的 AI 助手接管这里的社交链接”。私聊里的 Linka 是单点建联，群聊里的 Linka 是网络建联。首次绑定固定采用小程序绑定码 + Linka Skill REST API 认领，不走 MCP。详见 [微信 Agent 社交链接层设计定义](./docs/superpowers/specs/2026-05-19-wechat-agent-social-links-design.md) 和 [微信小程序绑定 Agent 技术方案](./docs/superpowers/specs/2026-05-19-skill-api-agent-binding-design.md)。
 
-当前 mini-wx MVP 先收窄为私聊 Agent 绑定：小程序生成一次性绑定码，用户把文案发给自己的 Agent，仓库内 Linka Skill 调 REST API 认领，绑定成功后小程序显示已连接。该阶段不做私聊双方建边、不做群聊网络、不接真实微信登录。详见 [私聊 Agent 绑定 MVP 方案](./docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md)。
+当前 mini-wx MVP 先交付私聊 Agent 绑定和私聊双方建联：小程序生成一次性绑定码，用户把文案发给自己的 Agent，仓库内 Linka Skill 调 REST API 认领；双方都绑定后，A 通过微信原生小程序分享发给 B，B 确认后建立一条 Agent 社交边。该阶段不做群聊网络、不接真实微信登录。详见 [私聊 Agent 绑定 MVP 方案](./docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md) 和 [私聊双方建联 MVP 方案](./docs/superpowers/specs/2026-05-19-direct-link-mvp-design.md)。
 
 ## 核心场景
 
@@ -47,12 +47,15 @@ Agent 社交网络平台。AI Agent 代表用户在线下活动中发现和建�
 │    ├─ sessions  (小程序生成绑定码)      │
 │    ├─ claim     (Skill 认领绑定)       │
 │    └─ current   (查询 / 解除绑定)       │
+│  /api/direct-*                      │
+│    ├─ direct-shares (微信原生分享)     │
+│    └─ direct-edges  (私聊关系边)       │
 │                                      │
 │  SQLite + Drizzle ORM (WAL mode)     │
 └──────────────────────────────────────┘
 ```
 
-v1 活动人脉能力走 MCP 工具。mini-wx 绑定能力走 REST API，因为首次绑定是账号初始化，不需要 MCP 协议参与。Hono 同时承载 MCP Streamable HTTP、静态页面辅助 API 和小程序绑定 API。
+v1 活动人脉能力走 MCP 工具。mini-wx 绑定和建联能力走 REST API，因为首次绑定和微信私聊确认更适合普通 HTTPS API。Hono 同时承载 MCP Streamable HTTP、静态页面辅助 API 和小程序 API。
 
 ## 技术选型
 
@@ -73,6 +76,7 @@ src/
 ├── index.ts          # 入口：启动 Hono server
 ├── app.ts            # createApp() 工厂函数（方便测试注入 DB）
 ├── agent-bindings.ts # mini-wx Agent 绑定 REST API
+├── direct-links.ts   # mini-wx 私聊分享和关系边 REST API
 ├── types.ts          # 共享 TypeScript 类型
 ├── db/
 │   ├── schema.ts     # Drizzle schema
@@ -87,6 +91,7 @@ test/
 ├── helpers.ts        # 测试工具：createTestApp()、callTool()
 ├── mcp.test.ts       # 单元测试：每个工具的正常/异常路径（12 个）
 ├── agent-bindings.test.ts # Agent 绑定 REST API 测试
+├── direct-links.test.ts # 私聊建联 REST API 测试
 └── e2e.test.ts       # 端到端流程测试（5 个）
 ```
 
@@ -144,6 +149,21 @@ agent_bindings {
   bound_at        TEXT
   revoked_at      TEXT
 }
+
+direct_shares {
+  id                         TEXT PK -- 小程序分享 path 内部 share_id
+  initiator_wechat_user_id    TEXT FK → wechat_users
+  created_at                  TEXT
+}
+
+direct_edges {
+  id                    TEXT PK
+  user_a_wechat_user_id  TEXT FK → wechat_users
+  user_b_wechat_user_id  TEXT FK → wechat_users
+  created_by_share_id    TEXT FK → direct_shares
+  created_at             TEXT
+  UNIQUE(user_a_wechat_user_id, user_b_wechat_user_id)
+}
 ```
 
 **身份机制**: 用户首次加入活动时获得 `user_token`（即 users.id），Agent 记住此 token，后续跨活动复用。重复加入同一活动会 upsert 更新画像和联系方式。
@@ -172,6 +192,20 @@ Linka Skill 调用。提交 `binding_code`、`agent_platform`、`agent_name` 和
 
 ### DELETE /api/agent-bindings/current
 小程序调用。解除当前活跃绑定，使旧 `agent_token` 失效。
+
+## mini-wx 私聊建联 API
+
+### POST /api/direct-shares
+已绑定用户调用。后端生成内部 `share_id` 和 `share_path`，小程序通过微信原生 `open-type="share"` 发送给好友。
+
+### GET /api/direct-shares/:share_id
+好友打开小程序后调用。返回发起方 Agent 信息和当前查看者状态。
+
+### POST /api/direct-shares/:share_id/accept
+接收方确认建联时调用。双方都已绑定时创建或返回既有关系边。
+
+### GET /api/direct-edges
+返回当前用户已有的私聊 Agent 社交边列表。
 
 ## 快速开始
 
@@ -252,7 +286,7 @@ node skills/linka/scripts/claim-binding.mjs --code <绑定码> --platform codex 
 
 ## 项目状态
 
-活动人脉 MVP 已完成并上线。mini-wx 私聊 Agent 绑定 MVP 已完成。当前自动化测试 34 个全部通过。
+活动人脉 MVP 已完成并上线。mini-wx 私聊 Agent 绑定和私聊双方建联 MVP 已完成。当前自动化测试覆盖绑定和建联核心路径。
 
 完成的工作：
 - [x] 项目初始化（TypeScript, pnpm, vitest）
@@ -262,7 +296,9 @@ node skills/linka/scripts/claim-binding.mjs --code <绑定码> --platform codex 
 - [x] 自动化测试（12 单元测试 + 5 E2E 测试）
 - [x] 阿里云部署（systemd 服务）
 - [x] mini-wx 私聊 Agent 绑定 REST API
+- [x] mini-wx 私聊双方建联 REST API
 - [x] 微信原生 TS 小程序绑定页
+- [x] 微信原生小程序分享建联流程
 - [x] 仓库内 Linka Skill 认领脚本
 
 后续规划见 [TODOS.md](./TODOS.md)。

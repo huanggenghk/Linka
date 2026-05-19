@@ -2,9 +2,9 @@
 
 ## 结论
 
-mini-wx 第一阶段只做“用户把自己的 AI 助手绑定到 Linka”的最小闭环。
+mini-wx 第一阶段只做“用户把自己的 AI 助手绑定到 Linka”的最小闭环。私聊双方建联已在后续 MVP 中实现，见 [私聊双方建联 MVP 方案](./2026-05-19-direct-link-mvp-design.md)。
 
-本阶段不做私聊双方建边、不做群聊网络、不接真实微信登录。小程序用 `X-Mock-Wechat-User-Id` 模拟微信用户身份，后端生成一次性绑定码，Linka Skill 调 REST API 认领绑定。
+本阶段不做群聊网络、不接真实微信登录。小程序用 `X-Mock-Wechat-User-Id` 模拟微信用户身份，后端生成一次性绑定码，Linka Skill 调 REST API 认领绑定。
 
 ## 用户流程
 
@@ -72,6 +72,6 @@ Linka Skill 调用。
 ## 实施边界
 
 - 不接 `wx.login` / `code2Session`。
-- 不做私聊双方关系边。
+- 私聊双方关系边由后续 direct link MVP 负责。
 - 不做群聊 `openGid` 网络。
 - `agent_token` 本阶段只用于证明绑定完成，后续状态更新和建联 API 另行设计。

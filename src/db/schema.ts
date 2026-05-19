@@ -82,3 +82,38 @@ export const agentBindings = sqliteTable(
     uniqueIndex("agent_bindings_agent_token_idx").on(table.agentToken),
   ]
 );
+
+export const directShares = sqliteTable("direct_shares", {
+  id: text("id").primaryKey(),
+  initiatorWechatUserId: text("initiator_wechat_user_id")
+    .notNull()
+    .references(() => wechatUsers.id),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const directEdges = sqliteTable(
+  "direct_edges",
+  {
+    id: text("id").primaryKey(),
+    userAWechatUserId: text("user_a_wechat_user_id")
+      .notNull()
+      .references(() => wechatUsers.id),
+    userBWechatUserId: text("user_b_wechat_user_id")
+      .notNull()
+      .references(() => wechatUsers.id),
+    createdByShareId: text("created_by_share_id")
+      .notNull()
+      .references(() => directShares.id),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => [
+    uniqueIndex("direct_edges_users_idx").on(
+      table.userAWechatUserId,
+      table.userBWechatUserId
+    ),
+  ]
+);

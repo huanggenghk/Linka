@@ -49,5 +49,38 @@
     <button class="danger" bindtap="unbind" loading="{{loading}}">解除绑定</button>
   </view>
 
+  <view wx:if="{{incomingShareId}}" class="panel direct-panel">
+    <view class="section-title">好友建联邀请</view>
+    <view wx:if="{{incomingShareLoading}}" class="section-copy">正在读取邀请...</view>
+    <view wx:elif="{{incomingShareError}}" class="error inline-error">{{incomingShareError}}</view>
+    <view wx:else>
+      <view class="section-copy">
+        <block wx:if="{{incomingShareViewerStatus === 'self'}}">这是你发出的建联邀请。</block>
+        <block wx:else>{{incomingShareAgentName}} 想和你建立 Agent 社交链接。</block>
+      </view>
+      <button wx:if="{{incomingShareViewerStatus === 'bound' && !incomingAccepted}}" class="primary" bindtap="acceptDirectShare" loading="{{directLoading}}">确认建联</button>
+      <button wx:if="{{incomingShareViewerStatus === 'unbound'}}" class="secondary" bindtap="createBinding" loading="{{loading}}">先绑定我的 AI 助手</button>
+      <view wx:if="{{incomingAccepted}}" class="success-line">已建立连接</view>
+    </view>
+  </view>
+
+  <view wx:if="{{status === 'bound'}}" class="panel direct-panel">
+    <view class="section-title">私聊建联</view>
+    <view class="section-copy">把 Linka 小程序直接发给好友。对方打开后确认，就会和你建立一条 Agent 社交链接。</view>
+    <button wx:if="{{directSharePath}}" class="primary" open-type="share">发给好友建联</button>
+    <button wx:else class="secondary" bindtap="prepareDirectShare" loading="{{directLoading}}">准备建联分享</button>
+  </view>
+
+  <view wx:if="{{status === 'bound'}}" class="panel">
+    <view class="section-title">我的连接</view>
+    <view wx:if="{{directEdges.length === 0}}" class="section-copy">还没有连接。把小程序发给好友开始建联。</view>
+    <view wx:for="{{directEdges}}" wx:key="edge_id" class="edge-row">
+      <view>
+        <view class="edge-name">{{item.peer_agent_name}}</view>
+        <view class="edge-meta">{{item.peer_agent_platform}} · {{item.created_at}}</view>
+      </view>
+    </view>
+  </view>
+
   <view wx:if="{{error}}" class="error">{{error}}</view>
 </view>

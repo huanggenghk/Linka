@@ -57,6 +57,23 @@ const INIT_SQL = `
   );
 
   CREATE UNIQUE INDEX IF NOT EXISTS agent_bindings_agent_token_idx ON agent_bindings(agent_token);
+
+  CREATE TABLE IF NOT EXISTS direct_shares (
+    id TEXT PRIMARY KEY,
+    initiator_wechat_user_id TEXT NOT NULL REFERENCES wechat_users(id),
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS direct_edges (
+    id TEXT PRIMARY KEY,
+    user_a_wechat_user_id TEXT NOT NULL REFERENCES wechat_users(id),
+    user_b_wechat_user_id TEXT NOT NULL REFERENCES wechat_users(id),
+    created_by_share_id TEXT NOT NULL REFERENCES direct_shares(id),
+    created_at TEXT NOT NULL
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS direct_edges_users_idx
+    ON direct_edges(user_a_wechat_user_id, user_b_wechat_user_id);
 `;
 
 export function createDb(dbPath?: string) {
