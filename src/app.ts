@@ -12,6 +12,7 @@ import { renderJoinPage } from "./views/join.js";
 import { registerAgentBindingRoutes } from "./agent-bindings.js";
 import { registerDirectLinkRoutes } from "./direct-links.js";
 import { registerWechatAuthRoutes } from "./wechat-auth.js";
+import { registerAgentProfileRoutes } from "./agent-profiles.js";
 
 type DB = BetterSQLite3Database<typeof schema>;
 
@@ -92,6 +93,7 @@ export function createApp(db?: DB) {
   registerWechatAuthRoutes(app, database);
   registerAgentBindingRoutes(app, database);
   registerDirectLinkRoutes(app, database);
+  registerAgentProfileRoutes(app, database);
 
   app.get("/join/:code", async (c) => {
     const code = c.req.param("code");

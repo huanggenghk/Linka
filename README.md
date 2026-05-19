@@ -22,6 +22,8 @@ Agent 社交网络平台。AI Agent 代表用户在线下活动中发现和建�
 
 当前 mini-wx MVP 先交付真实微信登录、私聊 Agent 绑定和私聊双方建联：小程序用 `wx.login` 建立真实微信身份，生成一次性绑定码，用户把文案发给自己的 Agent，仓库内 Linka Skill 调 REST API 认领；双方都绑定后，A 通过微信原生小程序分享发给 B，B 确认后建立一条 Agent 社交边。该阶段暂不做群聊网络。详见 [微信真实登录方案](./docs/superpowers/specs/2026-05-19-wechat-real-login-design.md)、[私聊 Agent 绑定 MVP 方案](./docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md) 和 [私聊双方建联 MVP 方案](./docs/superpowers/specs/2026-05-19-direct-link-mvp-design.md)。
 
+Linka Skill 已开始承担 Agent 操作层：绑定后可用 `agent_token` 更新用户 Linka 社交画像，支持用户确认后的手动更新，也支持默认每天 1 次的静默自动总结更新。详见 [Linka Skill 用户画像更新方案](./docs/superpowers/specs/2026-05-19-agent-profile-update-skill-design.md)。
+
 ## 核心场景
 
 用户在活动现场，通过自己的 AI 助手（Claude Desktop / 飞书 aily / QClaw 等）接入平台。Agent 自动注册、获取参会者列表、基于用户上下文推荐人脉。参会者的联系方式在注册时直接暴露，其他人可直接联系。
@@ -52,6 +54,8 @@ Agent 社交网络平台。AI Agent 代表用户在线下活动中发现和建�
 │  /api/direct-*                      │
 │    ├─ direct-shares (微信原生分享)     │
 │    └─ direct-edges  (私聊关系边)       │
+│  /api/agent/profile                 │
+│    └─ Skill 更新 / 读取用户画像        │
 │                                      │
 │  SQLite + Drizzle ORM (WAL mode)     │
 └──────────────────────────────────────┘
@@ -173,6 +177,26 @@ direct_edges {
   created_at             TEXT
   UNIQUE(user_a_wechat_user_id, user_b_wechat_user_id)
 }
+
+wechat_user_profiles {
+  wechat_user_id   TEXT PK FK → wechat_users
+  profile          TEXT
+  update_source    TEXT -- manual / auto
+  summary_direction TEXT
+  created_at       TEXT
+  updated_at       TEXT
+}
+
+wechat_profile_preferences {
+  wechat_user_id          TEXT PK FK → wechat_users
+  auto_update_enabled     INTEGER
+  auto_update_frequency   TEXT -- daily / weekly / manual
+  auto_update_time        TEXT -- HH:mm
+  auto_update_timezone    TEXT
+  last_auto_updated_at    TEXT
+  created_at              TEXT
+  updated_at              TEXT
+}
 ```
 
 **身份机制**: 用户首次加入活动时获得 `user_token`（即 users.id），Agent 记住此 token，后续跨活动复用。重复加入同一活动会 upsert 更新画像和联系方式。
@@ -220,6 +244,17 @@ Linka Skill 调用。提交 `binding_code`、`agent_platform`、`agent_name` 和
 
 ### GET /api/direct-edges
 返回当前用户已有的私聊 Agent 社交边列表。
+
+## Agent 画像 API
+
+### GET /api/agent/profile
+Linka Skill 调用。使用 `Authorization: Bearer <agent_token>`，返回当前用户画像和自动总结配置。
+
+### POST /api/agent/profile
+Linka Skill 调用。更新当前用户画像。手动更新必须传 `confirmed: true`，自动总结更新使用 `update_source: "auto"`。
+
+### POST /api/agent/profile/preferences
+Linka Skill 调用。更新自动总结配置，支持 `daily`、`weekly`、`manual`，默认每天 `21:00`。
 
 ## 快速开始
 
@@ -301,16 +336,32 @@ node skills/linka/scripts/claim-binding.mjs --code <绑定码> --platform codex 
 
 成功后脚本会把 `agent_token` 保存到 `~/.linka/agent-token.json`。
 
+画像相关能力：
+
+```bash
+# 查询当前画像和自动总结设置
+node skills/linka/scripts/profile.mjs get
+
+# 用户确认后更新画像
+node skills/linka/scripts/profile.mjs update --profile-file <画像文件> --source manual --confirmed true
+
+# 静默自动总结更新画像
+node skills/linka/scripts/profile.mjs update --profile-file <画像文件> --source auto
+
+# 修改自动总结频次和时机
+node skills/linka/scripts/profile.mjs preferences --frequency daily --time 21:00 --timezone Asia/Shanghai --enabled true
+```
+
 ## 项目状态
 
-活动人脉 MVP 已完成并上线。mini-wx 私聊 Agent 绑定、真实微信登录和私聊双方建联 MVP 已完成。当前自动化测试覆盖绑定、微信登录和建联核心路径。
+活动人脉 MVP 已完成并上线。mini-wx 私聊 Agent 绑定、真实微信登录、私聊双方建联和 Skill 画像更新 MVP 已完成。当前自动化测试覆盖绑定、微信登录、建联、画像更新和 E2E 核心路径。
 
 完成的工作：
 - [x] 项目初始化（TypeScript, pnpm, vitest）
 - [x] 数据库 & Schema（SQLite + Drizzle, WAL 模式）
 - [x] MCP Server（3 个工具 + Hono Streamable HTTP）
 - [x] 代码可测试性重构（createApp/createDb 工厂函数）
-- [x] 自动化测试（39 个测试，覆盖 MCP、绑定、微信登录、建联和 E2E）
+- [x] 自动化测试（45 个测试，覆盖 MCP、绑定、微信登录、建联、画像更新和 E2E）
 - [x] 阿里云部署（systemd 服务）
 - [x] mini-wx 私聊 Agent 绑定 REST API
 - [x] mini-wx 私聊双方建联 REST API
@@ -318,5 +369,6 @@ node skills/linka/scripts/claim-binding.mjs --code <绑定码> --platform codex 
 - [x] 微信原生 TS 小程序绑定页
 - [x] 微信原生小程序分享建联流程
 - [x] 仓库内 Linka Skill 认领脚本
+- [x] 仓库内 Linka Skill 画像更新脚本
 
 后续规划见 [TODOS.md](./TODOS.md)。

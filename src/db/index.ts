@@ -81,6 +81,26 @@ const INIT_SQL = `
 
   CREATE UNIQUE INDEX IF NOT EXISTS direct_edges_users_idx
     ON direct_edges(user_a_wechat_user_id, user_b_wechat_user_id);
+
+  CREATE TABLE IF NOT EXISTS wechat_user_profiles (
+    wechat_user_id TEXT PRIMARY KEY REFERENCES wechat_users(id),
+    profile TEXT NOT NULL,
+    update_source TEXT NOT NULL,
+    summary_direction TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS wechat_profile_preferences (
+    wechat_user_id TEXT PRIMARY KEY REFERENCES wechat_users(id),
+    auto_update_enabled INTEGER NOT NULL,
+    auto_update_frequency TEXT NOT NULL,
+    auto_update_time TEXT NOT NULL,
+    auto_update_timezone TEXT NOT NULL,
+    last_auto_updated_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `;
 
 export function createDb(dbPath?: string) {

@@ -70,6 +70,16 @@ mini-wx 阶段固定采用“Linka Skill 调 REST API 完成绑定”的方案�
 - `agent_name`
 - `bound_at`
 
+### 绑定后的画像维护
+
+绑定完成后，Linka Skill 使用 `agent_token` 调用 Agent 侧 API：
+
+- `GET /api/agent/profile`: 读取当前画像和自动总结配置。
+- `POST /api/agent/profile`: 更新当前画像。手动更新必须已获得用户确认；静默自动总结使用 `update_source=auto`。
+- `POST /api/agent/profile/preferences`: 修改自动总结频次和时机。默认每天 1 次。
+
+完整规则见 [Linka Skill 用户画像更新方案](./2026-05-19-agent-profile-update-skill-design.md)。
+
 ## 安全约束
 
 - `binding_code` 必须短期有效，默认 10 分钟。

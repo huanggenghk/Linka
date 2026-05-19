@@ -1,4 +1,4 @@
-import { sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(), // UUID, also serves as user_token
@@ -128,3 +128,43 @@ export const directEdges = sqliteTable(
     ),
   ]
 );
+
+export const wechatUserProfiles = sqliteTable("wechat_user_profiles", {
+  wechatUserId: text("wechat_user_id")
+    .primaryKey()
+    .references(() => wechatUsers.id),
+  profile: text("profile").notNull(),
+  updateSource: text("update_source").notNull(), // manual | auto
+  summaryDirection: text("summary_direction"),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+  updatedAt: text("updated_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const wechatProfilePreferences = sqliteTable("wechat_profile_preferences", {
+  wechatUserId: text("wechat_user_id")
+    .primaryKey()
+    .references(() => wechatUsers.id),
+  autoUpdateEnabled: integer("auto_update_enabled", { mode: "boolean" })
+    .notNull()
+    .$defaultFn(() => true),
+  autoUpdateFrequency: text("auto_update_frequency")
+    .notNull()
+    .$defaultFn(() => "daily"),
+  autoUpdateTime: text("auto_update_time")
+    .notNull()
+    .$defaultFn(() => "21:00"),
+  autoUpdateTimezone: text("auto_update_timezone")
+    .notNull()
+    .$defaultFn(() => "Asia/Shanghai"),
+  lastAutoUpdatedAt: text("last_auto_updated_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+  updatedAt: text("updated_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});

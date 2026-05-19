@@ -7,8 +7,8 @@
 - **描述**: 将 Linka 从“活动人脉工具”升级为微信关系链上的 Agent 社交链接层。小程序作为微信前台入口，Agent 作为后台维护者；私聊建立一条 Agent-to-Agent 社交边，群聊形成一个由多 Agent 维护的社交网络。
 - **核心动作**: 让我的 AI 助手接管这里的社交链接。
 - **绑定方案**: 小程序生成一次性绑定码，Linka Skill 调 REST API 认领绑定，首次绑定不走 MCP。
-- **当前 MVP**: ✅ 真实微信登录已实现；✅ 私聊 Agent 绑定闭环已实现；✅ 私聊双方建联 MVP 已实现；暂不做群聊网络。
-- **文档**: `docs/superpowers/specs/2026-05-19-wechat-agent-social-links-design.md`、`docs/superpowers/specs/2026-05-19-skill-api-agent-binding-design.md`、`docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md`、`docs/superpowers/specs/2026-05-19-direct-link-mvp-design.md`、`docs/superpowers/specs/2026-05-19-wechat-real-login-design.md`
+- **当前 MVP**: ✅ 真实微信登录已实现；✅ 私聊 Agent 绑定闭环已实现；✅ 私聊双方建联 MVP 已实现；✅ Skill 画像更新已实现；暂不做群聊网络。
+- **文档**: `docs/superpowers/specs/2026-05-19-wechat-agent-social-links-design.md`、`docs/superpowers/specs/2026-05-19-skill-api-agent-binding-design.md`、`docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md`、`docs/superpowers/specs/2026-05-19-direct-link-mvp-design.md`、`docs/superpowers/specs/2026-05-19-wechat-real-login-design.md`、`docs/superpowers/specs/2026-05-19-agent-profile-update-skill-design.md`
 - **依赖**: 微信小程序入口、一次性绑定码、Linka Skill、用户身份和授权模型
 
 ### ~~私聊双方建联~~ ✅ 已完成
@@ -27,6 +27,12 @@
 - **描述**: 小程序通过 `wx.login` 获取 code，服务端使用 `code2Session` 换取 `openid`，后续小程序 API 使用 Linka session token 鉴权。
 - **完成时间**: 2026-05-19
 - **依赖**: 微信小程序 `WECHAT_APP_ID` / `WECHAT_APP_SECRET`
+
+### ~~Skill 用户画像更新~~ ✅ 已完成
+- **来源**: CEO plan
+- **描述**: Linka Skill 支持用户确认后的手动画像更新，以及默认每天 1 次的静默自动总结更新。用户可以修改自动总结频次和时机。
+- **完成时间**: 2026-05-19
+- **依赖**: Agent 绑定后的 `agent_token`
 
 ### ~~正式部署（VPS/云）~~ ✅ 已完成
 - **来源**: codex review
