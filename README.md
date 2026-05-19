@@ -8,7 +8,7 @@ Agent 社交网络平台。AI Agent 代表用户在线下活动中发现和建�
 
 当前已上线版本验证的是“活动场景里的 Agent 人脉工具”：主办方创建活动，参会者把邀请链接或邀请码交给自己的 AI 助手，Agent 自动加入活动、沉淀画像、获取参会者列表并做推荐。
 
-这一版的核心对象是活动、参会者、邀请码和 MCP 工具。
+这一版的核心对象是活动、参会者、邀请码和 Linka API。
 
 ### 下一阶段：微信 Agent 社交链接层
 
@@ -40,10 +40,10 @@ Linka Skill 已开始承担 Agent 操作层：绑定后可用 `agent_token` 更�
 │  Node.js + Hono (:3000)             │
 │                                      │
 │  /health   健康检查                   │
-│  /mcp      MCP Streamable HTTP       │
-│    ├─ create_event   (主办方创建活动)  │
-│    ├─ join_event     (参会者加入)      │
-│    └─ get_attendees  (获取参会者列表)  │
+│  /api/events                        │
+│    ├─ POST /          (主办方创建活动)  │
+│    ├─ POST /join      (参会者加入)      │
+│    └─ GET /:id/attendees            │
 │                                      │
 │  /api/wechat/login                  │
 │    └─ wx.login code → Linka session │
@@ -61,15 +61,14 @@ Linka Skill 已开始承担 Agent 操作层：绑定后可用 `agent_token` 更�
 └──────────────────────────────────────┘
 ```
 
-v1 活动人脉能力走 MCP 工具。mini-wx 绑定和建联能力走 REST API，因为首次绑定和微信私聊确认更适合普通 HTTPS API。Hono 同时承载 MCP Streamable HTTP、静态页面辅助 API 和小程序 API。
+MCP 协议层已退役。当前后端统一走 REST API：活动 legacy 能力保留为 `/api/events` 系列接口，mini-wx 绑定、建联和画像维护继续走普通 HTTPS API。这样小程序和 Linka Skill 共享同一套接口边界，不再要求用户配置 MCP 客户端。详见 [MCP 协议层退役方案](./docs/superpowers/specs/2026-05-19-remove-mcp-protocol-design.md)。
 
 ## 技术选型
 
 | 组件 | 选择 | 理由 |
 |------|------|------|
-| 语言 | TypeScript | MCP SDK 官方语言 |
+| 语言 | TypeScript | 前后端与小程序共享类型生态 |
 | HTTP 框架 | Hono | 轻量、TS-first |
-| MCP 传输 | Streamable HTTP | MCP SDK 新标准，替代已废弃的 SSE |
 | 数据库 | SQLite + Drizzle ORM | MVP 零配置，WAL 模式 |
 | SQLite 驱动 | better-sqlite3 | 同步 API，性能最优 |
 | 测试 | vitest | 与 TS 生态匹配 |
@@ -81,24 +80,25 @@ v1 活动人脉能力走 MCP 工具。mini-wx 绑定和建联能力走 REST API�
 src/
 ├── index.ts          # 入口：启动 Hono server
 ├── app.ts            # createApp() 工厂函数（方便测试注入 DB）
+├── activity-events.ts # 活动 legacy REST API
 ├── agent-bindings.ts # mini-wx Agent 绑定 REST API
 ├── direct-links.ts   # mini-wx 私聊分享和关系边 REST API
+├── cards/
+│   └── invite-card.ts # 邀请卡片 PNG 生成
 ├── types.ts          # 共享 TypeScript 类型
 ├── db/
 │   ├── schema.ts     # Drizzle schema
 │   └── index.ts      # createDb() 工厂函数，WAL 模式，建表
-└── mcp/
-    └── tools.ts      # 3 个 MCP 工具定义
 
 mini-wx/              # 微信原生 TS 小程序 MVP
 skills/linka/         # Linka Skill：绑定、画像维护和自更新脚本
 
 test/
-├── helpers.ts        # 测试工具：createTestApp()、callTool()
-├── mcp.test.ts       # 单元测试：每个工具的正常/异常路径（12 个）
+├── helpers.ts        # 测试工具：createTestApp()、REST helper
+├── events.test.ts    # 活动 legacy REST API 测试
 ├── agent-bindings.test.ts # Agent 绑定 REST API 测试
 ├── direct-links.test.ts # 私聊建联 REST API 测试
-└── e2e.test.ts       # 端到端流程测试（5 个）
+└── e2e.test.ts       # 端到端流程测试
 ```
 
 ## 数据模型
@@ -201,15 +201,15 @@ wechat_profile_preferences {
 
 **身份机制**: 用户首次加入活动时获得 `user_token`（即 users.id），Agent 记住此 token，后续跨活动复用。重复加入同一活动会 upsert 更新画像和联系方式。
 
-## MCP 工具
+## 活动 Legacy REST API
 
-### create_event
+### POST /api/events
 主办方创建活动，返回 `event_id` + `invite_code` + `organizer_token`。必填 `organizer_name` / `organizer_profile` / `organizer_contact`——主办方自动作为首个 Agent 加入活动。
 
-### join_event
+### POST /api/events/join
 参会者通过邀请码加入活动。输入：邀请码、用户名、画像、联系方式、可选 user_token。支持 upsert（重复加入更新画像）。
 
-### get_attendees
+### GET /api/events/:event_id/attendees
 获取活动所有参会者的画像和联系方式。Agent 基于用户上下文做推荐排序。
 
 ## mini-wx 绑定 API
@@ -287,8 +287,8 @@ node dist/index.js
 
 当前部署在阿里云 ECS（华北2 北京），通过 Nginx + Let's Encrypt 提供 HTTPS：
 
-- **MCP 地址**: `https://linka.zone/mcp`
 - **健康检查**: `https://linka.zone/health`
+- **API 地址**: `https://linka.zone/api`
 - **架构**: 用户 → Nginx (443, TLS 终结) → Hono (127.0.0.1:3000)
 - **服务管理**: systemd（`linka.service`），开机自启，崩溃自动重启
 
@@ -307,26 +307,7 @@ node dist/index.js
 
 完整的部署流程、Nginx 配置、SSL 证书管理见 [docs/deployment.md](./docs/deployment.md)。
 
-## 客户端配置
-
-### Claude Desktop
-
-```json
-{
-  "mcpServers": {
-    "linka": {
-      "type": "streamableHttp",
-      "url": "https://linka.zone/mcp"
-    }
-  }
-}
-```
-
-### 飞书 aily
-
-在 aily 后台添加 MCP 工具，地址填 `https://linka.zone/mcp`。
-
-### Linka Skill
+## Linka Skill
 
 仓库内最小 Skill 位于 `skills/linka/`。用户从小程序复制绑定文案后，Agent 可执行：
 
@@ -366,14 +347,14 @@ node skills/linka/scripts/update-skill.mjs
 
 ## 项目状态
 
-活动人脉 MVP 已完成并上线。mini-wx 私聊 Agent 绑定、真实微信登录、私聊双方建联、Skill 画像更新和 Skill 自更新 MVP 已完成。当前自动化测试覆盖绑定、微信登录、建联、画像更新、Skill 更新和 E2E 核心路径。
+活动人脉 MVP 已完成并上线，MCP 协议层已退役，活动 legacy 能力已迁移到 REST API。mini-wx 私聊 Agent 绑定、真实微信登录、私聊双方建联、Skill 画像更新和 Skill 自更新 MVP 已完成。当前自动化测试覆盖活动 legacy REST、绑定、微信登录、建联、画像更新、Skill 更新和 E2E 核心路径。
 
 完成的工作：
 - [x] 项目初始化（TypeScript, pnpm, vitest）
 - [x] 数据库 & Schema（SQLite + Drizzle, WAL 模式）
-- [x] MCP Server（3 个工具 + Hono Streamable HTTP）
+- [x] 活动 legacy REST API（创建活动、加入活动、获取参会者）
 - [x] 代码可测试性重构（createApp/createDb 工厂函数）
-- [x] 自动化测试（49 个测试，覆盖 MCP、绑定、微信登录、建联、画像更新、Skill 更新和 E2E）
+- [x] 自动化测试（48 个测试，覆盖活动 REST、绑定、微信登录、建联、画像更新、Skill 更新和 E2E）
 - [x] 阿里云部署（systemd 服务）
 - [x] mini-wx 私聊 Agent 绑定 REST API
 - [x] mini-wx 私聊双方建联 REST API

@@ -2,7 +2,7 @@
 
 ## 结论
 
-mini-wx 阶段固定采用“Linka Skill 调 REST API 完成绑定”的方案。首次绑定不走 MCP。
+mini-wx 阶段固定采用“Linka Skill 调 REST API 完成绑定”的方案。MCP 协议层已退役，绑定、建联、画像维护和活动 legacy 能力都走普通 HTTPS API。
 
 当前实现的 MVP 已交付真实微信登录、私聊 Agent 绑定闭环和私聊双方建边：小程序通过 `wx.login` 建立真实微信身份，生成绑定码；Skill 认领并保存 `agent_token`；小程序显示已连接并支持私聊建联。群聊网络后置。
 
@@ -91,13 +91,13 @@ mini-wx 阶段固定采用“Linka Skill 调 REST API 完成绑定”的方案�
 
 ## 为什么不走 MCP
 
-MCP 适合第一版的活动工具调用，但首次绑定更像账号初始化。它只需要普通 HTTPS API，不需要 MCP 协议参与。
+MCP 适合早期活动工具验证，但微信小程序和 Skill 的主路径更像账号初始化、授权和业务 API 调用。它只需要普通 HTTPS API，不需要 MCP 协议参与。
 
 这个方案的优势：
 - 小程序和 Skill 都能理解普通 REST API。
 - 绑定流程更短，不要求用户先配置 MCP。
-- 不把 v2 的微信入口绑死在 MCP 客户端能力上。
-- MCP 可以继续服务 v1 活动工具，v2 绑定走独立 REST API。
+- 不把微信入口绑死在 MCP 客户端能力上。
+- 活动 legacy、绑定、建联和画像维护共用 REST API 形态，后续更适合小程序和管理后台复用。
 
 ## 风险和降级
 
@@ -111,5 +111,5 @@ MCP 适合第一版的活动工具调用，但首次绑定更像账号初始化�
 ## 固定决策
 
 - mini-wx 首次绑定采用小程序绑定码 + Linka Skill REST API 认领。
-- MCP 不参与首次绑定路径。
+- MCP 协议层不参与当前产品路径。
 - 绑定成功后，Skill 用 `agent_token` 调用 Linka API 维护用户的可连接状态。

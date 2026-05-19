@@ -19,7 +19,6 @@
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
     "@hono/node-server": "^1.19.13",
-    "@modelcontextprotocol/sdk": "^1.29.0",
     "@resvg/resvg-js": "^2.6.2",
     "better-sqlite3": "^12.8.0",
     "drizzle-orm": "^0.45.2",

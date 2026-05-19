@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { createTestApp, callTool, parseToolResult, createEventArgs } from "./helpers.js";
+import { createTestApp, createEvent, joinEvent, getAttendees } from "./helpers.js";
 import type { Hono } from "hono";
 
 describe("QR 码加入流程", () => {
@@ -11,24 +11,23 @@ describe("QR 码加入流程", () => {
     const env = createTestApp();
     app = env.app;
 
-    const res = await callTool(app, "create_event", createEventArgs({
+    const { data } = await createEvent(app, {
       name: "AI Builder Meetup",
       description: "AI 开发者聚会",
       location: "深圳南山",
       date: "2026-05-01",
-    }));
-    const data = parseToolResult(res);
+    });
     inviteCode = data.invite_code;
     eventId = data.event_id;
   });
 
-  describe("create_event 返回值", () => {
-    it("应该返回 invite_code、join_url 和邀请卡片图片", async () => {
-      const res = await callTool(app, "create_event", createEventArgs({
+  describe("POST /api/events 返回值", () => {
+    it("应该返回 invite_code、join_url 和 card_url", async () => {
+      const { res, data } = await createEvent(app, {
         name: "测试活动",
-      }));
-      const data = parseToolResult(res);
+      });
 
+      expect(res.status).toBe(201);
       expect(data.event_id).toBeDefined();
       expect(data.invite_code).toBeDefined();
       expect(data.join_url).toBeDefined();
@@ -37,12 +36,6 @@ describe("QR 码加入流程", () => {
       // join_url / card_url 格式正确
       expect(data.join_url).toContain(`/join/${data.invite_code}`);
       expect(data.card_url).toContain(`/card/${data.invite_code}.png`);
-
-      // 第二个 content block 是邀请卡片 PNG 图片
-      const imageBlock = res.result?.content?.[1];
-      expect(imageBlock?.type).toBe("image");
-      expect(imageBlock?.mimeType).toBe("image/png");
-      expect(imageBlock?.data).toBeDefined();
     });
   });
 
@@ -120,18 +113,14 @@ describe("QR 码加入流程", () => {
 
   describe("E2E：完整 QR 加入流程", () => {
     it("创建活动 → 获取 QR 信息 → 查询活动 → 用 invite_code 加入", async () => {
-      // 1. 组织者创建活动，拿到 QR 码信息
-      const createRes = await callTool(app, "create_event", createEventArgs({
+      const { data: createData } = await createEvent(app, {
         name: "QR 测试活动",
         description: "测试完整 QR 加入流程",
         location: "北京",
         date: "2026-06-01",
-      }));
-      const createData = parseToolResult(createRes);
+      });
       expect(createData.join_url).toBeDefined();
-      expect(createRes.result?.content?.[1]?.type).toBe("image");
 
-      // 2. 参与者 Agent 从 join_url 解析出 invite_code，访问 /join/:code
       const code = createData.invite_code;
       const joinPageRes = await app.request(`/join/${code}`);
       expect(joinPageRes.status).toBe(200);
@@ -140,22 +129,16 @@ describe("QR 码加入流程", () => {
       expect(eventInfo.event_name).toBe("QR 测试活动");
       expect(eventInfo.invite_code).toBe(code);
 
-      // 3. 参与者 Agent 用 invite_code 调用 join_event
-      const joinRes = await callTool(app, "join_event", {
+      const { data: joinData } = await joinEvent(app, {
         invite_code: eventInfo.invite_code,
         name: "参与者",
         profile: "通过 QR 码加入的用户",
         contact_info: "微信: test_qr",
       });
-      const joinData = parseToolResult(joinRes);
       expect(joinData.event_name).toBe("QR 测试活动");
       expect(joinData.registered_count).toBe(2); // 主办方 + 参与者
 
-      // 4. 验证参会者列表
-      const attendeesRes = await callTool(app, "get_attendees", {
-        event_id: createData.event_id,
-      });
-      const attendeesData = parseToolResult(attendeesRes);
+      const { data: attendeesData } = await getAttendees(app, createData.event_id);
       expect(attendeesData.attendees).toHaveLength(2);
       const participant = attendeesData.attendees.find((a: any) => a.name === "参与者");
       expect(participant.contact_info).toBe("微信: test_qr");

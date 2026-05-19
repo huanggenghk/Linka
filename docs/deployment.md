@@ -14,7 +14,6 @@
          ↓
       Nginx (443/80)
        ├── /              → 静态文件 (/var/www/linka)
-       ├── /mcp           → 反向代理 → Hono (127.0.0.1:3000)
        ├── /api           → 反向代理 → Hono (127.0.0.1:3000)
        ├── /health        → 反向代理 → Hono (127.0.0.1:3000)
        ├── /join/:code    → 反向代理 → Hono (127.0.0.1:3000)
@@ -71,6 +70,8 @@ rsync -avz --delete \
   --exclude='web/node_modules' \
   --exclude='.claude' \
   --exclude='.superpowers' \
+  --exclude='mini-wx/project.config.json' \
+  --exclude='mini-wx/project.private.config.json' \
   . root@123.56.163.63:/root/Linka/
 
 # 3. 在服务器上安装依赖并重启
@@ -87,7 +88,7 @@ ssh root@123.56.163.63 "curl -s http://localhost:3000/health"
 
 ```ini
 [Unit]
-Description=Linka MCP Server
+Description=Linka Server
 After=network.target
 
 [Service]
@@ -168,6 +169,7 @@ rsync -avz --delete \
   --exclude='data/' --exclude='data.archived-*' --exclude='.git' \
   --exclude='web/dist' --exclude='web/node_modules' \
   --exclude='.claude' --exclude='.superpowers' \
+  --exclude='mini-wx/project.config.json' --exclude='mini-wx/project.private.config.json' \
   . root@123.56.163.63:/root/Linka/ && \
 ssh root@123.56.163.63 "cd /root/Linka && pnpm install --prod && systemctl restart linka.service && nginx -t && systemctl reload nginx && curl -s http://localhost:3000/health"
 ```
@@ -181,8 +183,9 @@ curl https://linka.zone/health
 # 前端页面
 curl -s -o /dev/null -w "%{http_code}" https://linka.zone
 
-# MCP 端点
-curl -X POST https://linka.zone/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
+# API 端点
+curl -s https://linka.zone/api/stats
+
+# MCP 端点已退役，预期返回 404
+curl -I https://linka.zone/mcp
 ```

@@ -458,7 +458,7 @@ ${trackHtml}
       </div>
       <div class="step">
         <div class="idx">3</div>
-        <div>Agent 自动通过 MCP 接入 Linka，帮你找到<strong>现场值得聊的人</strong></div>
+        <div>Agent 自动通过 Linka API 接入活动，帮你找到<strong>现场值得聊的人</strong></div>
       </div>
     </div>
 
@@ -468,14 +468,14 @@ ${trackHtml}
         <span class="chip">Claude</span>
         <span class="chip">飞书 aily</span>
         <span class="chip">Cursor</span>
-        <span class="chip">ChatGPT (MCP)</span>
+        <span class="chip">ChatGPT</span>
         <span class="chip">自建 Agent</span>
       </div>
     </div>
   </div>
 
   <footer>
-    <span>POWERED BY MCP</span>
+    <span>POWERED BY LINKA</span>
     <a href="https://linka.zone">linka.zone ↗</a>
   </footer>
 </main>
