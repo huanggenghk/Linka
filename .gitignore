@@ -5,3 +5,5 @@ dist/
 *.db-wal
 .gstack/
 .superpowers/
+.claude/
+.DS_Store
