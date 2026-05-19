@@ -1,0 +1,53 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">LINKA AGENT BINDING</view>
+    <view class="title">连接你的 AI 助手</view>
+    <view class="subtitle">生成一次性绑定码，把文案发给 Linka Skill。绑定成功后，AI 助手就可以代表你维护 Linka 社交链接。</view>
+  </view>
+
+  <view class="panel">
+    <view class="field">
+      <text class="label">API 地址</text>
+      <input class="input" value="{{apiBaseUrl}}" bindinput="onApiBaseInput" />
+    </view>
+    <view class="field">
+      <text class="label">Mock 微信用户 ID</text>
+      <input class="input mono" value="{{mockWechatUserId}}" bindinput="onMockUserInput" />
+    </view>
+    <button class="secondary" bindtap="refreshStatus" loading="{{loading}}">刷新状态</button>
+  </view>
+
+  <view class="status status-{{status}}">
+    <view class="status-label">当前状态</view>
+    <view class="status-value">
+      <block wx:if="{{status === 'bound'}}">已连接 {{agentName}}</block>
+      <block wx:elif="{{status === 'pending'}}">等待 Agent 认领</block>
+      <block wx:else>未连接</block>
+    </view>
+    <view wx:if="{{status === 'bound'}}" class="status-meta">{{agentPlatform}} · {{boundAt}}</view>
+    <view wx:if="{{status === 'pending'}}" class="status-meta">绑定码 {{bindingCode}} · {{expiresAt}}</view>
+  </view>
+
+  <view wx:if="{{status !== 'bound'}}" class="panel">
+    <button class="primary" bindtap="createBinding" loading="{{loading}}">生成绑定文案</button>
+
+    <view wx:if="{{copyPrompt}}" class="prompt-box">
+      <text class="prompt-label">发送给你的 Agent</text>
+      <textarea class="prompt-text" value="{{copyPrompt}}" disabled />
+      <button class="secondary" bindtap="copyPrompt">复制文案</button>
+    </view>
+  </view>
+
+  <view wx:if="{{status === 'bound'}}" class="panel">
+    <view class="bound-card">
+      <view class="bound-icon">✓</view>
+      <view>
+        <view class="bound-title">{{agentName}}</view>
+        <view class="bound-copy">已经可以代表你维护 Linka 社交链接。</view>
+      </view>
+    </view>
+    <button class="danger" bindtap="unbind" loading="{{loading}}">解除绑定</button>
+  </view>
+
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+</view>

@@ -29,6 +29,34 @@ const INIT_SQL = `
   );
 
   CREATE UNIQUE INDEX IF NOT EXISTS agents_event_user_idx ON agents(event_id, user_id);
+
+  CREATE TABLE IF NOT EXISTS wechat_users (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS binding_sessions (
+    id TEXT PRIMARY KEY,
+    wechat_user_id TEXT NOT NULL REFERENCES wechat_users(id),
+    binding_code TEXT UNIQUE NOT NULL,
+    copy_prompt TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    claimed_at TEXT,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS agent_bindings (
+    id TEXT PRIMARY KEY,
+    wechat_user_id TEXT NOT NULL REFERENCES wechat_users(id),
+    agent_platform TEXT NOT NULL,
+    agent_name TEXT NOT NULL,
+    skill_instance_id TEXT,
+    agent_token TEXT NOT NULL,
+    bound_at TEXT NOT NULL,
+    revoked_at TEXT
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS agent_bindings_agent_token_idx ON agent_bindings(agent_token);
 `;
 
 export function createDb(dbPath?: string) {
@@ -39,4 +67,3 @@ export function createDb(dbPath?: string) {
   sqlite.exec(INIT_SQL);
   return drizzle(sqlite, { schema });
 }
-

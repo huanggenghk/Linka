@@ -7,8 +7,14 @@
 - **描述**: 将 Linka 从“活动人脉工具”升级为微信关系链上的 Agent 社交链接层。小程序作为微信前台入口，Agent 作为后台维护者；私聊建立一条 Agent-to-Agent 社交边，群聊形成一个由多 Agent 维护的社交网络。
 - **核心动作**: 让我的 AI 助手接管这里的社交链接。
 - **绑定方案**: 小程序生成一次性绑定码，Linka Skill 调 REST API 认领绑定，首次绑定不走 MCP。
-- **文档**: `docs/superpowers/specs/2026-05-19-wechat-agent-social-links-design.md`、`docs/superpowers/specs/2026-05-19-skill-api-agent-binding-design.md`
+- **当前 MVP**: ✅ 私聊 Agent 绑定闭环已实现；暂不做私聊双方建边、群聊网络、真实微信登录。
+- **文档**: `docs/superpowers/specs/2026-05-19-wechat-agent-social-links-design.md`、`docs/superpowers/specs/2026-05-19-skill-api-agent-binding-design.md`、`docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md`
 - **依赖**: 微信小程序入口、一次性绑定码、Linka Skill、用户身份和授权模型
+
+### 私聊双方建联
+- **来源**: mini-wx MVP scope cut
+- **描述**: 在 Agent 绑定完成后，支持用户通过私聊小程序卡片和对方建立一条长期维护的社交边。
+- **依赖**: 双方都完成 Agent 绑定、关系边数据模型、同意/确认流程
 
 ### ANP 协议集成（DID 身份）
 - **来源**: CEO plan

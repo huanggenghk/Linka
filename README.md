@@ -1,6 +1,6 @@
 # Linka
 
-基于 MCP 协议的 Agent 社交网络平台。AI Agent 代表用户在线下活动中发现和建立人脉。
+Agent 社交网络平台。AI Agent 代表用户在线下活动中发现和建立人脉，并逐步接管微信关系场景里的社交链接。
 
 ## 产品阶段
 
@@ -19,6 +19,8 @@
 小程序负责微信内顺手进入、查看、确认和分享。Agent 负责后台理解用户、维护可连接状态、判断连接机会、生成推荐和跟进。
 
 核心动作从“加入活动”变为“让我的 AI 助手接管这里的社交链接”。私聊里的 Linka 是单点建联，群聊里的 Linka 是网络建联。首次绑定固定采用小程序绑定码 + Linka Skill REST API 认领，不走 MCP。详见 [微信 Agent 社交链接层设计定义](./docs/superpowers/specs/2026-05-19-wechat-agent-social-links-design.md) 和 [微信小程序绑定 Agent 技术方案](./docs/superpowers/specs/2026-05-19-skill-api-agent-binding-design.md)。
+
+当前 mini-wx MVP 先收窄为私聊 Agent 绑定：小程序生成一次性绑定码，用户把文案发给自己的 Agent，仓库内 Linka Skill 调 REST API 认领，绑定成功后小程序显示已连接。该阶段不做私聊双方建边、不做群聊网络、不接真实微信登录。详见 [私聊 Agent 绑定 MVP 方案](./docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md)。
 
 ## 核心场景
 
@@ -41,11 +43,16 @@
 │    ├─ join_event     (参会者加入)      │
 │    └─ get_attendees  (获取参会者列表)  │
 │                                      │
+│  /api/agent-bindings/*              │
+│    ├─ sessions  (小程序生成绑定码)      │
+│    ├─ claim     (Skill 认领绑定)       │
+│    └─ current   (查询 / 解除绑定)       │
+│                                      │
 │  SQLite + Drizzle ORM (WAL mode)     │
 └──────────────────────────────────────┘
 ```
 
-**纯 MCP 架构**，不需要 REST API。所有操作通过 MCP 工具完成。Hono 只作为 HTTP 载体，挂载 MCP Server 的 Streamable HTTP 传输。每个请求创建新的 McpServer 实例（无状态），数据通过 SQLite 持久化。
+v1 活动人脉能力走 MCP 工具。mini-wx 绑定能力走 REST API，因为首次绑定是账号初始化，不需要 MCP 协议参与。Hono 同时承载 MCP Streamable HTTP、静态页面辅助 API 和小程序绑定 API。
 
 ## 技术选型
 
@@ -65,16 +72,21 @@
 src/
 ├── index.ts          # 入口：启动 Hono server
 ├── app.ts            # createApp() 工厂函数（方便测试注入 DB）
+├── agent-bindings.ts # mini-wx Agent 绑定 REST API
 ├── types.ts          # 共享 TypeScript 类型
 ├── db/
-│   ├── schema.ts     # Drizzle schema（users, events, agents）
+│   ├── schema.ts     # Drizzle schema
 │   └── index.ts      # createDb() 工厂函数，WAL 模式，建表
 └── mcp/
     └── tools.ts      # 3 个 MCP 工具定义
 
+mini-wx/              # 微信原生 TS 小程序 MVP
+skills/linka/         # Linka Skill：认领绑定码并保存 agent_token
+
 test/
 ├── helpers.ts        # 测试工具：createTestApp()、callTool()
 ├── mcp.test.ts       # 单元测试：每个工具的正常/异常路径（12 个）
+├── agent-bindings.test.ts # Agent 绑定 REST API 测试
 └── e2e.test.ts       # 端到端流程测试（5 个）
 ```
 
@@ -106,6 +118,32 @@ agents {
   created_at   TEXT
   UNIQUE(event_id, user_id)
 }
+
+wechat_users {
+  id           TEXT PK     -- MVP 阶段为 mock 微信用户 ID
+  created_at   TEXT
+}
+
+binding_sessions {
+  id            TEXT PK
+  wechat_user_id TEXT FK → wechat_users
+  binding_code  TEXT UNIQUE -- 6 位一次性绑定码
+  copy_prompt   TEXT
+  expires_at    TEXT
+  claimed_at    TEXT
+  created_at    TEXT
+}
+
+agent_bindings {
+  id              TEXT PK
+  wechat_user_id  TEXT FK → wechat_users
+  agent_platform  TEXT
+  agent_name      TEXT
+  skill_instance_id TEXT
+  agent_token     TEXT UNIQUE
+  bound_at        TEXT
+  revoked_at      TEXT
+}
 ```
 
 **身份机制**: 用户首次加入活动时获得 `user_token`（即 users.id），Agent 记住此 token，后续跨活动复用。重复加入同一活动会 upsert 更新画像和联系方式。
@@ -121,6 +159,20 @@ agents {
 ### get_attendees
 获取活动所有参会者的画像和联系方式。Agent 基于用户上下文做推荐排序。
 
+## mini-wx 绑定 API
+
+### POST /api/agent-bindings/sessions
+小程序调用。使用 `X-Mock-Wechat-User-Id` 模拟微信用户，返回一次性 `binding_code`、`expires_at` 和 `copy_prompt`。
+
+### POST /api/agent-bindings/claim
+Linka Skill 调用。提交 `binding_code`、`agent_platform`、`agent_name` 和可选 `skill_instance_id`，返回 `agent_token`。
+
+### GET /api/agent-bindings/current
+小程序调用。返回当前 mock 微信用户的绑定状态：`unbound`、`pending` 或 `bound`。
+
+### DELETE /api/agent-bindings/current
+小程序调用。解除当前活跃绑定，使旧 `agent_token` 失效。
+
 ## 快速开始
 
 ```bash
@@ -132,6 +184,9 @@ pnpm dev
 
 # 运行测试
 pnpm test
+
+# 检查微信小程序 TS
+pnpm mini:check
 
 # 生产构建
 pnpm build
@@ -185,9 +240,19 @@ node dist/index.js
 
 在 aily 后台添加 MCP 工具，地址填 `https://linka.zone/mcp`。
 
+### Linka Skill
+
+仓库内最小 Skill 位于 `skills/linka/`。用户从小程序复制绑定文案后，Agent 可执行：
+
+```bash
+node skills/linka/scripts/claim-binding.mjs --code <绑定码> --platform codex --agent-name Codex
+```
+
+成功后脚本会把 `agent_token` 保存到 `~/.linka/agent-token.json`。
+
 ## 项目状态
 
-MVP 已完成并上线。17 个自动化测试全部通过。
+活动人脉 MVP 已完成并上线。mini-wx 私聊 Agent 绑定 MVP 已完成。当前自动化测试 34 个全部通过。
 
 完成的工作：
 - [x] 项目初始化（TypeScript, pnpm, vitest）
@@ -196,5 +261,8 @@ MVP 已完成并上线。17 个自动化测试全部通过。
 - [x] 代码可测试性重构（createApp/createDb 工厂函数）
 - [x] 自动化测试（12 单元测试 + 5 E2E 测试）
 - [x] 阿里云部署（systemd 服务）
+- [x] mini-wx 私聊 Agent 绑定 REST API
+- [x] 微信原生 TS 小程序绑定页
+- [x] 仓库内 Linka Skill 认领脚本
 
 后续规划见 [TODOS.md](./TODOS.md)。

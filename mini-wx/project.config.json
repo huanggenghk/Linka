@@ -1,0 +1,12 @@
+{
+  "appid": "touristappid",
+  "projectname": "Linka mini-wx",
+  "setting": {
+    "compileHotReLoad": true,
+    "urlCheck": false,
+    "es6": true,
+    "minified": true
+  },
+  "compileType": "miniprogram",
+  "libVersion": "latest"
+}

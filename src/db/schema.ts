@@ -40,3 +40,45 @@ export const agents = sqliteTable(
     uniqueIndex("agents_event_user_idx").on(table.eventId, table.userId),
   ]
 );
+
+export const wechatUsers = sqliteTable("wechat_users", {
+  id: text("id").primaryKey(), // Mock WeChat user id for mini-wx MVP
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const bindingSessions = sqliteTable("binding_sessions", {
+  id: text("id").primaryKey(),
+  wechatUserId: text("wechat_user_id")
+    .notNull()
+    .references(() => wechatUsers.id),
+  bindingCode: text("binding_code").unique().notNull(),
+  copyPrompt: text("copy_prompt").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  claimedAt: text("claimed_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const agentBindings = sqliteTable(
+  "agent_bindings",
+  {
+    id: text("id").primaryKey(),
+    wechatUserId: text("wechat_user_id")
+      .notNull()
+      .references(() => wechatUsers.id),
+    agentPlatform: text("agent_platform").notNull(),
+    agentName: text("agent_name").notNull(),
+    skillInstanceId: text("skill_instance_id"),
+    agentToken: text("agent_token").notNull(),
+    boundAt: text("bound_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    revokedAt: text("revoked_at"),
+  },
+  (table) => [
+    uniqueIndex("agent_bindings_agent_token_idx").on(table.agentToken),
+  ]
+);
