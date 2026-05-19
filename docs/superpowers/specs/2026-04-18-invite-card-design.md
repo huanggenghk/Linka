@@ -86,7 +86,7 @@ MCP image content block：
 ```
 
 ### 模块位置
-`src/mcp/card.ts` — 导出 `generateInviteCard(event, inviteCode): Promise<Buffer>`
+`src/cards/invite-card.ts` — 导出 `generateInviteCard(event, inviteCode): Promise<Buffer>`
 
 ### 字体加载
 Satori 需要字体 ArrayBuffer。从本地文件或 CDN 加载 Satoshi / DM Sans / JetBrains Mono。字体文件放在 `src/assets/fonts/`。

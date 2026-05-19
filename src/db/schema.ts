@@ -1,42 +1,129 @@
-import { sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-export const users = sqliteTable("users", {
-  id: text("id").primaryKey(), // UUID, also serves as user_token
-  name: text("name").notNull(),
-  contactInfo: text("contact_info").notNull(),
+export const wechatUsers = sqliteTable("wechat_users", {
+  id: text("id").primaryKey(), // WeChat openid for the mini program
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
 });
 
-export const events = sqliteTable("events", {
-  id: text("id").primaryKey(), // UUID
-  name: text("name").notNull(),
-  description: text("description"),
-  location: text("location"),
-  date: text("date"),
-  inviteCode: text("invite_code").unique().notNull(),
+export const wechatLoginSessions = sqliteTable("wechat_login_sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  wechatUserId: text("wechat_user_id")
+    .notNull()
+    .references(() => wechatUsers.id),
+  expiresAt: text("expires_at").notNull(),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
 });
 
-export const agents = sqliteTable(
-  "agents",
+export const bindingSessions = sqliteTable("binding_sessions", {
+  id: text("id").primaryKey(),
+  wechatUserId: text("wechat_user_id")
+    .notNull()
+    .references(() => wechatUsers.id),
+  bindingCode: text("binding_code").unique().notNull(),
+  copyPrompt: text("copy_prompt").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  claimedAt: text("claimed_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const agentBindings = sqliteTable(
+  "agent_bindings",
   {
-    id: text("id").primaryKey(), // UUID
-    eventId: text("event_id")
+    id: text("id").primaryKey(),
+    wechatUserId: text("wechat_user_id")
       .notNull()
-      .references(() => events.id),
-    userId: text("user_id")
+      .references(() => wechatUsers.id),
+    agentPlatform: text("agent_platform").notNull(),
+    agentName: text("agent_name").notNull(),
+    skillInstanceId: text("skill_instance_id"),
+    agentToken: text("agent_token").notNull(),
+    boundAt: text("bound_at")
       .notNull()
-      .references(() => users.id),
-    profile: text("profile").notNull(),
+      .$defaultFn(() => new Date().toISOString()),
+    revokedAt: text("revoked_at"),
+  },
+  (table) => [
+    uniqueIndex("agent_bindings_agent_token_idx").on(table.agentToken),
+  ]
+);
+
+export const directShares = sqliteTable("direct_shares", {
+  id: text("id").primaryKey(),
+  initiatorWechatUserId: text("initiator_wechat_user_id")
+    .notNull()
+    .references(() => wechatUsers.id),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const directEdges = sqliteTable(
+  "direct_edges",
+  {
+    id: text("id").primaryKey(),
+    userAWechatUserId: text("user_a_wechat_user_id")
+      .notNull()
+      .references(() => wechatUsers.id),
+    userBWechatUserId: text("user_b_wechat_user_id")
+      .notNull()
+      .references(() => wechatUsers.id),
+    createdByShareId: text("created_by_share_id")
+      .notNull()
+      .references(() => directShares.id),
     createdAt: text("created_at")
       .notNull()
       .$defaultFn(() => new Date().toISOString()),
   },
   (table) => [
-    uniqueIndex("agents_event_user_idx").on(table.eventId, table.userId),
+    uniqueIndex("direct_edges_users_idx").on(
+      table.userAWechatUserId,
+      table.userBWechatUserId
+    ),
   ]
 );
+
+export const wechatUserProfiles = sqliteTable("wechat_user_profiles", {
+  wechatUserId: text("wechat_user_id")
+    .primaryKey()
+    .references(() => wechatUsers.id),
+  profile: text("profile").notNull(),
+  updateSource: text("update_source").notNull(), // manual | auto
+  summaryDirection: text("summary_direction"),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+  updatedAt: text("updated_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const wechatProfilePreferences = sqliteTable("wechat_profile_preferences", {
+  wechatUserId: text("wechat_user_id")
+    .primaryKey()
+    .references(() => wechatUsers.id),
+  autoUpdateEnabled: integer("auto_update_enabled", { mode: "boolean" })
+    .notNull()
+    .$defaultFn(() => true),
+  autoUpdateFrequency: text("auto_update_frequency")
+    .notNull()
+    .$defaultFn(() => "daily"),
+  autoUpdateTime: text("auto_update_time")
+    .notNull()
+    .$defaultFn(() => "21:00"),
+  autoUpdateTimezone: text("auto_update_timezone")
+    .notNull()
+    .$defaultFn(() => "Asia/Shanghai"),
+  lastAutoUpdatedAt: text("last_auto_updated_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+  updatedAt: text("updated_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});

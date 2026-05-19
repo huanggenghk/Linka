@@ -1,0 +1,14 @@
+page {
+  background: #fafaf8;
+  color: #1a1a1a;
+  font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif;
+}
+
+button {
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+button::after {
+  border: none;
+}

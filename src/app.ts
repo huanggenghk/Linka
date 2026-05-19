@@ -1,56 +1,17 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { registerTools } from "./mcp/tools.js";
-import { generateInviteCard } from "./mcp/card.js";
 import { createDb } from "./db/index.js";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { count, desc, eq } from "drizzle-orm";
 import * as schema from "./db/schema.js";
-import { renderJoinPage } from "./views/join.js";
+import { registerAgentBindingRoutes } from "./agent-bindings.js";
+import { registerDirectLinkRoutes } from "./direct-links.js";
+import { registerWechatAuthRoutes } from "./wechat-auth.js";
+import { registerAgentProfileRoutes } from "./agent-profiles.js";
 
 type DB = BetterSQLite3Database<typeof schema>;
 
-const LINKA_AGENT_INSTRUCTIONS = `Linka 是一个线下活动的 AI 人脉撮合工具。用户通过他的 Agent（你）来创建 / 加入活动、发现现场人脉。
-
-【接入后硬要求】
-每当你被要求接入 / 启用 / 连接 Linka（哪怕是重新接入、已经接入过），你回复「已就绪 / 接入成功 / 完成」之类状态消息后，**必须紧接着在同一条回复里给出一段 Linka 使用介绍**。不要等用户追问，不要假设用户已经知道，不要因为"这不是第一次"就跳过——介绍是标准动作。
-
-介绍应覆盖两个维度，用简洁的话说清楚"用户可以做什么 + 用户要说什么你才会动"：
-
-1. 活动
-   - 创建活动：用户是主办方，想发起一场活动。你会问清活动名称、描述、地点、日期，然后调用 create_event，把返回的二维码图片展示给他，让他分享给参会者。
-   - 加入活动：用户拿到了别人分享的邀请码或二维码。你会基于与他过往对话，自动总结一段社交画像，询问他希望暴露给其他参会者的联系方式，然后调用 join_event。
-
-2. 人脉挖掘（现场）
-   - 加入活动后，用户可以随时让你「看看现场还有谁」「帮我找几个合适聊的人」。你用之前 join_event 返回的 event_id 调用 get_attendees，拿到所有人的画像和联系方式，结合用户当前上下文和意图做匹配推荐，附上联系方式，而不是把列表原样倒给他。
-
-介绍完后用一句话收尾："你现在想创建活动还是加入活动？"
-
-【记忆要求】
-- 每次 join_event 返回的 user_token 和 event_id 必须记住。user_token 是用户的跨活动身份，下次加入新活动时要传回去。
-- 同一用户重复加入同一活动会自动 upsert 画像，不会重复计数。
-
-【语言】
-始终使用中文与用户沟通。`;
-
 export function createApp(db?: DB) {
   const database = db ?? createDb();
-
-  function createMcpServer(): McpServer {
-    const server = new McpServer(
-      {
-        name: "linka",
-        version: "1.0.0",
-      },
-      {
-        instructions: LINKA_AGENT_INSTRUCTIONS,
-      }
-    );
-    registerTools(server, database);
-    return server;
-  }
 
   const app = new Hono();
 
@@ -61,127 +22,17 @@ export function createApp(db?: DB) {
       allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
       allowHeaders: [
         "Content-Type",
-        "mcp-session-id",
-        "Last-Event-ID",
-        "mcp-protocol-version",
+        "Authorization",
+        "X-Mock-Wechat-User-Id",
       ],
-      exposeHeaders: ["mcp-session-id", "mcp-protocol-version"],
     })
   );
 
   app.get("/health", (c) => c.json({ status: "ok" }));
 
-  app.get("/api/stats", async (c) => {
-    const [eventsResult] = await database
-      .select({ value: count() })
-      .from(schema.events);
-    const [agentsResult] = await database
-      .select({ value: count() })
-      .from(schema.agents);
-    return c.json({
-      events: eventsResult.value,
-      agents: agentsResult.value,
-    });
-  });
-
-  app.get("/join/:code", async (c) => {
-    const code = c.req.param("code");
-    const event = database
-      .select()
-      .from(schema.events)
-      .where(eq(schema.events.inviteCode, code))
-      .get();
-
-    if (!event) {
-      const accept = c.req.header("Accept") || "";
-      if (accept.includes("text/html")) {
-        return c.html("<html><body><h1>活动不存在</h1><p>邀请码无效或活动已关闭。</p></body></html>", 404);
-      }
-      return c.json({ error: "活动不存在" }, 404);
-    }
-
-    const accept = c.req.header("Accept") || "";
-    if (accept.includes("text/html")) {
-      const feedRows = database
-        .select({
-          name: schema.users.name,
-          profile: schema.agents.profile,
-          joinedAt: schema.agents.createdAt,
-        })
-        .from(schema.agents)
-        .innerJoin(schema.users, eq(schema.agents.userId, schema.users.id))
-        .where(eq(schema.agents.eventId, event.id))
-        .orderBy(desc(schema.agents.createdAt))
-        .limit(12)
-        .all();
-
-      const [activeResult] = database
-        .select({ value: count() })
-        .from(schema.agents)
-        .where(eq(schema.agents.eventId, event.id))
-        .all();
-
-      const baseUrl = process.env.BASE_URL || "https://linka.zone";
-
-      const html = renderJoinPage({
-        event: {
-          name: event.name,
-          date: event.date,
-          location: event.location,
-          host: null,
-        },
-        activeCount: activeResult?.value ?? 0,
-        feed: feedRows.map((r) => ({
-          name: r.name,
-          profilePreview: r.profile,
-          joinedAt: r.joinedAt,
-        })),
-        joinUrl: `${baseUrl}/join/${event.inviteCode}`,
-      });
-
-      return c.html(html);
-    }
-
-    return c.json({
-      event_name: event.name,
-      description: event.description,
-      location: event.location,
-      date: event.date,
-      invite_code: event.inviteCode,
-    });
-  });
-
-  app.get("/card/:code{.+\\.png}", async (c) => {
-    const codeParam = c.req.param("code").replace(/\.png$/, "");
-    const event = database
-      .select()
-      .from(schema.events)
-      .where(eq(schema.events.inviteCode, codeParam))
-      .get();
-
-    if (!event) {
-      return c.json({ error: "活动不存在" }, 404);
-    }
-
-    const baseUrl = process.env.BASE_URL || "https://linka.zone";
-    const cardPng = await generateInviteCard({
-      eventName: event.name,
-      date: event.date,
-      location: event.location,
-      joinUrl: `${baseUrl}/join/${event.inviteCode}`,
-    });
-
-    c.header("Content-Type", "image/png");
-    c.header("Cache-Control", "public, max-age=86400, immutable");
-    return c.body(new Uint8Array(cardPng));
-  });
-
-  app.all("/mcp", async (c) => {
-    const transport = new WebStandardStreamableHTTPServerTransport();
-    const server = createMcpServer();
-    await server.connect(transport);
-    return transport.handleRequest(c.req.raw);
-  });
-
+  registerWechatAuthRoutes(app, database);
+  registerAgentBindingRoutes(app, database);
+  registerDirectLinkRoutes(app, database);
+  registerAgentProfileRoutes(app, database);
   return app;
 }
