@@ -22,7 +22,7 @@ Agent 社交网络平台。AI Agent 代表用户在线下活动中发现和建�
 
 当前 mini-wx MVP 先交付真实微信登录、私聊 Agent 绑定和私聊双方建联：小程序用 `wx.login` 建立真实微信身份，生成一次性绑定码，用户把文案发给自己的 Agent，仓库内 Linka Skill 调 REST API 认领；双方都绑定后，A 通过微信原生小程序分享发给 B，B 确认后建立一条 Agent 社交边。该阶段暂不做群聊网络。详见 [微信真实登录方案](./docs/superpowers/specs/2026-05-19-wechat-real-login-design.md)、[私聊 Agent 绑定 MVP 方案](./docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md) 和 [私聊双方建联 MVP 方案](./docs/superpowers/specs/2026-05-19-direct-link-mvp-design.md)。
 
-Linka Skill 已开始承担 Agent 操作层：绑定后可用 `agent_token` 更新用户 Linka 社交画像，支持用户确认后的手动更新，也支持默认每天 1 次的静默自动总结更新。详见 [Linka Skill 用户画像更新方案](./docs/superpowers/specs/2026-05-19-agent-profile-update-skill-design.md)。
+Linka Skill 已开始承担 Agent 操作层：绑定后可用 `agent_token` 更新用户 Linka 社交画像，支持用户确认后的手动更新，也支持默认每天 1 次的静默自动总结更新。Skill 本身参考 gstack 增加了版本检查和 vendored 自更新机制。详见 [Linka Skill 用户画像更新方案](./docs/superpowers/specs/2026-05-19-agent-profile-update-skill-design.md) 和 [Linka Skill 更新机制方案](./docs/superpowers/specs/2026-05-19-linka-skill-update-mechanism-design.md)。
 
 ## 核心场景
 
@@ -91,7 +91,7 @@ src/
     └── tools.ts      # 3 个 MCP 工具定义
 
 mini-wx/              # 微信原生 TS 小程序 MVP
-skills/linka/         # Linka Skill：认领绑定码并保存 agent_token
+skills/linka/         # Linka Skill：绑定、画像维护和自更新脚本
 
 test/
 ├── helpers.ts        # 测试工具：createTestApp()、callTool()
@@ -352,16 +352,28 @@ node skills/linka/scripts/profile.mjs update --profile-file <画像文件> --sou
 node skills/linka/scripts/profile.mjs preferences --frequency daily --time 21:00 --timezone Asia/Shanghai --enabled true
 ```
 
+Skill 更新：
+
+```bash
+# 检查是否有新版本
+node skills/linka/scripts/check-update.mjs --force
+
+# 更新 vendored Linka Skill
+node skills/linka/scripts/update-skill.mjs
+```
+
+`update-skill.mjs` 只自动替换 vendored Skill。如果当前 Skill 位于完整 Linka Git 工作区内，脚本会拒绝自动覆盖，改用正常 Git 更新流程。
+
 ## 项目状态
 
-活动人脉 MVP 已完成并上线。mini-wx 私聊 Agent 绑定、真实微信登录、私聊双方建联和 Skill 画像更新 MVP 已完成。当前自动化测试覆盖绑定、微信登录、建联、画像更新和 E2E 核心路径。
+活动人脉 MVP 已完成并上线。mini-wx 私聊 Agent 绑定、真实微信登录、私聊双方建联、Skill 画像更新和 Skill 自更新 MVP 已完成。当前自动化测试覆盖绑定、微信登录、建联、画像更新、Skill 更新和 E2E 核心路径。
 
 完成的工作：
 - [x] 项目初始化（TypeScript, pnpm, vitest）
 - [x] 数据库 & Schema（SQLite + Drizzle, WAL 模式）
 - [x] MCP Server（3 个工具 + Hono Streamable HTTP）
 - [x] 代码可测试性重构（createApp/createDb 工厂函数）
-- [x] 自动化测试（45 个测试，覆盖 MCP、绑定、微信登录、建联、画像更新和 E2E）
+- [x] 自动化测试（49 个测试，覆盖 MCP、绑定、微信登录、建联、画像更新、Skill 更新和 E2E）
 - [x] 阿里云部署（systemd 服务）
 - [x] mini-wx 私聊 Agent 绑定 REST API
 - [x] mini-wx 私聊双方建联 REST API
@@ -370,5 +382,6 @@ node skills/linka/scripts/profile.mjs preferences --frequency daily --time 21:00
 - [x] 微信原生小程序分享建联流程
 - [x] 仓库内 Linka Skill 认领脚本
 - [x] 仓库内 Linka Skill 画像更新脚本
+- [x] 仓库内 Linka Skill 更新机制
 
 后续规划见 [TODOS.md](./TODOS.md)。
