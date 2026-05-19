@@ -3,32 +3,9 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
 
 const INIT_SQL = `
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    contact_info TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS events (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    location TEXT,
-    date TEXT,
-    invite_code TEXT UNIQUE NOT NULL,
-    created_at TEXT NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS agents (
-    id TEXT PRIMARY KEY,
-    event_id TEXT NOT NULL REFERENCES events(id),
-    user_id TEXT NOT NULL REFERENCES users(id),
-    profile TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  );
-
-  CREATE UNIQUE INDEX IF NOT EXISTS agents_event_user_idx ON agents(event_id, user_id);
+  DROP TABLE IF EXISTS agents;
+  DROP TABLE IF EXISTS events;
+  DROP TABLE IF EXISTS users;
 
   CREATE TABLE IF NOT EXISTS wechat_users (
     id TEXT PRIMARY KEY,

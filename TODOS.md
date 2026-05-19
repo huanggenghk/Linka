@@ -7,7 +7,7 @@
 - **描述**: 将 Linka 从“活动人脉工具”升级为微信关系链上的 Agent 社交链接层。小程序作为微信前台入口，Agent 作为后台维护者；私聊建立一条 Agent-to-Agent 社交边，群聊形成一个由多 Agent 维护的社交网络。
 - **核心动作**: 让我的 AI 助手接管这里的社交链接。
 - **绑定方案**: 小程序生成一次性绑定码，Linka Skill 调 REST API 认领绑定。
-- **当前 MVP**: ✅ 真实微信登录已实现；✅ 私聊 Agent 绑定闭环已实现；✅ 私聊双方建联 MVP 已实现；✅ Skill 画像更新已实现；✅ Skill 更新机制已实现；✅ MCP 协议层已移除；✅ 活动 REST API 已退役，后续由微信群聊加入替代；暂不做群聊网络。
+- **当前 MVP**: ✅ 真实微信登录已实现；✅ 私聊 Agent 绑定闭环已实现；✅ 私聊双方建联 MVP 已实现；✅ Skill 画像更新已实现；✅ Skill 更新机制已实现；✅ MCP 协议层已移除；✅ 活动兼容层已彻底移除，后续由微信群聊加入替代；暂不做群聊网络。
 - **文档**: `docs/superpowers/specs/2026-05-19-wechat-agent-social-links-design.md`、`docs/superpowers/specs/2026-05-19-skill-api-agent-binding-design.md`、`docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md`、`docs/superpowers/specs/2026-05-19-direct-link-mvp-design.md`、`docs/superpowers/specs/2026-05-19-wechat-real-login-design.md`、`docs/superpowers/specs/2026-05-19-agent-profile-update-skill-design.md`、`docs/superpowers/specs/2026-05-19-linka-skill-update-mechanism-design.md`、`docs/superpowers/specs/2026-05-19-remove-mcp-protocol-design.md`、`docs/superpowers/specs/2026-05-20-remove-activity-rest-api-design.md`
 - **依赖**: 微信小程序入口、一次性绑定码、Linka Skill、用户身份和授权模型
 
@@ -46,9 +46,9 @@
 - **完成时间**: 2026-05-19
 - **文档**: `docs/superpowers/specs/2026-05-19-remove-mcp-protocol-design.md`
 
-### ~~活动 REST API 退役~~ ✅ 已完成
+### ~~活动兼容层彻底移除~~ ✅ 已完成
 - **来源**: CEO 决策
-- **描述**: 移除 `POST /api/events`、`POST /api/events/join`、`GET /api/events/:event_id/attendees`。旧活动邀请页和邀请卡片仅保留历史兼容；后续多人加入按微信群聊加入重新设计。
+- **描述**: 移除 `POST /api/events`、`POST /api/events/join`、`GET /api/events/:event_id/attendees`、`GET /api/stats`、`GET /join/:code`、`GET /card/:code.png`、旧活动表、邀请卡生成依赖和旧兼容测试。后续多人加入按微信群聊加入重新设计。
 - **完成时间**: 2026-05-20
 - **文档**: `docs/superpowers/specs/2026-05-20-remove-activity-rest-api-design.md`
 
@@ -68,11 +68,6 @@
 - **来源**: CEO plan（deferred）
 - **描述**: 跨多个活动记住用户社交关系，提醒"你在上次活动认识了张三"。
 - **依赖**: 持久身份（ANP DID）
-
-### 活动管理（关闭/撤销邀请码）
-- **来源**: codex review
-- **描述**: 活动生命周期管理：关闭活动、撤销邀请码、查看统计。
-- **依赖**: 用户认证
 
 ## P3 - 低优先级
 

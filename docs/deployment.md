@@ -15,9 +15,7 @@
       Nginx (443/80)
        ├── /              → 静态文件 (/var/www/linka)
        ├── /api           → 反向代理 → Hono (127.0.0.1:3000)
-       ├── /health        → 反向代理 → Hono (127.0.0.1:3000)
-       ├── /join/:code    → 反向代理 → Hono (127.0.0.1:3000)
-       └── /card/:code.png → 反向代理 → Hono (127.0.0.1:3000)
+       └── /health        → 反向代理 → Hono (127.0.0.1:3000)
 ```
 
 新增后端路由时，必须同步在 `/etc/nginx/sites-available/linka` 和 `sites-enabled/linka`（注意：当前不是 symlink，两份都要改）里加 `location` 块，否则 nginx 会把请求当 SPA 路由返回 index.html。
@@ -53,7 +51,7 @@ ssh root@123.56.163.63 "nginx -t && systemctl reload nginx"
 在本地执行：
 
 ```bash
-# 1. 构建 TypeScript（build 脚本已包含把 src/assets 拷进 dist/，字体文件必须同步）
+# 1. 构建 TypeScript
 pnpm build
 
 # 2. 同步代码到服务器（排除整个 data/ 目录以保护 SQLite WAL + shm；
@@ -183,11 +181,14 @@ curl https://linka.zone/health
 # 前端页面
 curl -s -o /dev/null -w "%{http_code}" https://linka.zone
 
-# API 端点
-curl -s https://linka.zone/api/stats
+# API 鉴权检查
+curl -I https://linka.zone/api/agent-bindings/current
 
-# 活动 REST API 已退役，预期返回 404
+# 活动兼容层已退役，预期返回 404
 curl -I https://linka.zone/api/events
+curl -I https://linka.zone/api/stats
+curl -I https://linka.zone/join/OLD12345
+curl -I https://linka.zone/card/OLD12345.png
 
 # MCP 端点已退役，预期返回 404
 curl -I https://linka.zone/mcp

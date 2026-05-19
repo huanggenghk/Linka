@@ -4,9 +4,9 @@
 
 Linka 当前产品主线已经从“活动里的 MCP 人脉工具”转向“微信小程序 + Linka Skill 的 Agent 社交链接层”。本阶段移除 MCP 协议层，不再暴露 `/mcp` Streamable HTTP 端点，也不再依赖 `@modelcontextprotocol/sdk`。
 
-2026-05-20 追加决策：活动 REST API 也已退役。`POST /api/events`、`POST /api/events/join`、`GET /api/events/:event_id/attendees` 不再保留，后续多人场景由微信群聊加入替代。详见 [活动 REST API 退役方案](./2026-05-20-remove-activity-rest-api-design.md)。
+2026-05-20 追加决策：活动兼容层已彻底退役。`POST /api/events`、`POST /api/events/join`、`GET /api/events/:event_id/attendees`、`GET /api/stats`、`GET /join/:code`、`GET /card/:code.png`、旧活动表和邀请卡生成依赖均不再保留，后续多人场景由微信群聊加入替代。详见 [活动兼容层彻底移除方案](./2026-05-20-remove-activity-rest-api-design.md)。
 
-邀请页 `/join/:code`、邀请卡片 `/card/:code.png`、统计 `/api/stats` 暂时只作为历史兼容保留。
+不再保留活动运行时兼容入口。
 
 ## 为什么现在移除
 
@@ -28,15 +28,12 @@ Linka 当前产品主线已经从“活动里的 MCP 人脉工具”转向“微
 
 保留：
 
-- `users`、`events`、`agents` 三张活动 legacy 表。
-- `/join/:code` 活动落地页。
-- `/card/:code.png` 邀请卡片生成。
-- `/api/stats` 统计接口。
+- 无活动运行时能力保留。
 
 ## 测试要求
 
 - `POST /api/events`、`POST /api/events/join`、`GET /api/events/:event_id/attendees` 应返回 404。
-- 回归覆盖 `/join/:code` JSON/HTML、`/card/:code.png`、`/api/stats`。
+- `/join/:code`、`/card/:code.png`、`/api/stats` 应返回 404。
 - 保持绑定、真实微信登录、私聊建联、画像更新和 Skill 更新测试不退化。
 
 验证命令：
@@ -56,7 +53,9 @@ pnpm test
 线上验证重点：
 
 - `https://linka.zone/health` 返回健康状态。
-- `https://linka.zone/api/stats` 返回统计 JSON。
 - `https://linka.zone/api/events` 返回 404。
+- `https://linka.zone/api/stats` 返回 404。
+- `https://linka.zone/join/OLD12345` 返回 404。
+- `https://linka.zone/card/OLD12345.png` 返回 404。
 - 小程序仍能完成登录、绑定、分享建联。
 - Linka Skill 仍能 claim 绑定码、读取/更新画像。

@@ -1,17 +1,12 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-  createTestApp,
-  seedLegacyAttendee,
-  seedLegacyEvent,
-} from "./helpers.js";
+import { createTestApp } from "./helpers.js";
 import type { Hono } from "hono";
 
 describe("E2E 完整流程", () => {
-  let env: ReturnType<typeof createTestApp>;
   let app: Hono;
 
   beforeEach(() => {
-    env = createTestApp();
+    const env = createTestApp();
     app = env.app;
   });
 
@@ -40,29 +35,19 @@ describe("E2E 完整流程", () => {
     expect(attendeesRes.status).toBe(404);
   });
 
-  it("GET /api/stats 应该返回活动和Agent数量", async () => {
-    seedLegacyEvent(env.db, {
-      name: "Test Event 1",
-      description: "测试活动",
-      location: "北京",
-      date: "2026-06-01",
-    });
-    const secondEvent = seedLegacyEvent(env.db, {
-      name: "Test Event 2",
-      description: "测试活动2",
-      location: "上海",
-      date: "2026-06-02",
-    });
-    seedLegacyAttendee(env.db, {
-      eventId: secondEvent.eventId,
-      name: "Alice",
-      profile: "Engineer",
-      contactInfo: "alice@test.com",
-    });
+  it("旧活动兼容入口应该已彻底移除", async () => {
+    const statsRes = await app.request("/api/stats");
+    expect(statsRes.status).toBe(404);
 
-    const res = await app.request("/api/stats");
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data).toEqual({ events: 2, agents: 3 }); // 2 主办方 + 1 参会者
+    const joinJsonRes = await app.request("/join/OLD12345");
+    expect(joinJsonRes.status).toBe(404);
+
+    const joinHtmlRes = await app.request("/join/OLD12345", {
+      headers: { Accept: "text/html" },
+    });
+    expect(joinHtmlRes.status).toBe(404);
+
+    const cardRes = await app.request("/card/OLD12345.png");
+    expect(cardRes.status).toBe(404);
   });
 });
