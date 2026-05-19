@@ -1,24 +1,24 @@
 # Linka
 
-Agent 社交网络平台。AI Agent 代表用户在线下活动中发现和建立人脉，并逐步接管微信关系场景里的社交链接。
+Agent 社交网络平台。AI Agent 代表用户维护微信关系场景里的社交链接，并逐步扩展到私聊和群聊里的连接网络。
 
 ## 产品阶段
 
-### 第一版：活动人脉 MVP
+### 已完成验证：活动人脉 MVP
 
-当前已上线版本验证的是“活动场景里的 Agent 人脉工具”：主办方创建活动，参会者把邀请链接或邀请码交给自己的 AI 助手，Agent 自动加入活动、沉淀画像、获取参会者列表并做推荐。
+第一版验证的是“活动场景里的 Agent 人脉工具”：主办方创建活动，参会者把邀请链接或邀请码交给自己的 AI 助手，Agent 自动加入活动、沉淀画像、获取参会者列表并做推荐。
 
-这一版的核心对象是活动、参会者、邀请码和 Linka API。
+该方向已完成验证并退役。MCP 协议层和活动 REST API 均已移除；后续“多人场景加入”会按微信群聊加入重新设计。
 
 ### 下一阶段：微信 Agent 社交链接层
 
-下一阶段方向是把 Linka 从活动工具升级为微信关系链上的 Agent 社交链接层：
+当前方向是把 Linka 从活动工具升级为微信关系链上的 Agent 社交链接层：
 
 > Linka 让你的 AI 助手接管微信里的社交链接：私聊建立一条边，群聊形成一个网。
 
 小程序负责微信内顺手进入、查看、确认和分享。Agent 负责后台理解用户、维护可连接状态、判断连接机会、生成推荐和跟进。
 
-核心动作从“加入活动”变为“让我的 AI 助手接管这里的社交链接”。私聊里的 Linka 是单点建联，群聊里的 Linka 是网络建联。首次绑定固定采用小程序绑定码 + Linka Skill REST API 认领，不走 MCP。详见 [微信 Agent 社交链接层设计定义](./docs/superpowers/specs/2026-05-19-wechat-agent-social-links-design.md) 和 [微信小程序绑定 Agent 技术方案](./docs/superpowers/specs/2026-05-19-skill-api-agent-binding-design.md)。
+核心动作从“加入活动”变为“让我的 AI 助手接管这里的社交链接”。私聊里的 Linka 是单点建联，群聊里的 Linka 是网络建联。首次绑定固定采用小程序绑定码 + Linka Skill REST API 认领，不走 MCP。活动 REST API 退役决策见 [活动 REST API 退役方案](./docs/superpowers/specs/2026-05-20-remove-activity-rest-api-design.md)。
 
 当前 mini-wx MVP 先交付真实微信登录、私聊 Agent 绑定和私聊双方建联：小程序用 `wx.login` 建立真实微信身份，生成一次性绑定码，用户把文案发给自己的 Agent，仓库内 Linka Skill 调 REST API 认领；双方都绑定后，A 通过微信原生小程序分享发给 B，B 确认后建立一条 Agent 社交边。该阶段暂不做群聊网络。详见 [微信真实登录方案](./docs/superpowers/specs/2026-05-19-wechat-real-login-design.md)、[私聊 Agent 绑定 MVP 方案](./docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md) 和 [私聊双方建联 MVP 方案](./docs/superpowers/specs/2026-05-19-direct-link-mvp-design.md)。
 
@@ -26,11 +26,11 @@ Linka Skill 已开始承担 Agent 操作层：绑定后可用 `agent_token` 更�
 
 ## 核心场景
 
-用户在活动现场，通过自己的 AI 助手（Claude Desktop / 飞书 aily / QClaw 等）接入平台。Agent 自动注册、获取参会者列表、基于用户上下文推荐人脉。参会者的联系方式在注册时直接暴露，其他人可直接联系。
+用户在微信小程序里绑定自己的 AI 助手，随后通过微信私聊分享和对方建立 Agent 社交边。Agent 负责维护用户画像、理解连接意图、在后续对话中查询和利用这些连接。
 
 ```
-主办方 → 创建活动 → 获得邀请码 → 分享给参会者
-参会者 → 把邀请码发给 AI 助手 → Agent 自动注册画像 → 获取推荐人脉
+用户 A → 绑定 Agent → 微信原生分享给 B
+用户 B → 绑定 Agent → 确认建联 → 双方 Agent 可查询关系边
 ```
 
 ## 技术架构
@@ -40,11 +40,6 @@ Linka Skill 已开始承担 Agent 操作层：绑定后可用 `agent_token` 更�
 │  Node.js + Hono (:3000)             │
 │                                      │
 │  /health   健康检查                   │
-│  /api/events                        │
-│    ├─ POST /          (主办方创建活动)  │
-│    ├─ POST /join      (参会者加入)      │
-│    └─ GET /:id/attendees            │
-│                                      │
 │  /api/wechat/login                  │
 │    └─ wx.login code → Linka session │
 │  /api/agent-bindings/*              │
@@ -56,12 +51,14 @@ Linka Skill 已开始承担 Agent 操作层：绑定后可用 `agent_token` 更�
 │    └─ direct-edges  (私聊关系边)       │
 │  /api/agent/profile                 │
 │    └─ Skill 更新 / 读取用户画像        │
+│  /join/:code, /card/:code.png       │
+│    └─ 旧活动邀请页兼容入口             │
 │                                      │
 │  SQLite + Drizzle ORM (WAL mode)     │
 └──────────────────────────────────────┘
 ```
 
-MCP 协议层已退役。当前后端统一走 REST API：活动 legacy 能力保留为 `/api/events` 系列接口，mini-wx 绑定、建联和画像维护继续走普通 HTTPS API。这样小程序和 Linka Skill 共享同一套接口边界，不再要求用户配置 MCP 客户端。详见 [MCP 协议层退役方案](./docs/superpowers/specs/2026-05-19-remove-mcp-protocol-design.md)。
+MCP 协议层和活动 REST API 已退役。当前后端主路径是 mini-wx 绑定、私聊建联和 Agent 画像维护。旧活动邀请页和邀请卡片只作为历史数据兼容入口保留，不再提供创建活动、加入活动、获取参会者列表的公开 API。
 
 ## 技术选型
 
@@ -80,12 +77,10 @@ MCP 协议层已退役。当前后端统一走 REST API：活动 legacy 能力�
 src/
 ├── index.ts          # 入口：启动 Hono server
 ├── app.ts            # createApp() 工厂函数（方便测试注入 DB）
-├── activity-events.ts # 活动 legacy REST API
 ├── agent-bindings.ts # mini-wx Agent 绑定 REST API
 ├── direct-links.ts   # mini-wx 私聊分享和关系边 REST API
 ├── cards/
 │   └── invite-card.ts # 邀请卡片 PNG 生成
-├── types.ts          # 共享 TypeScript 类型
 ├── db/
 │   ├── schema.ts     # Drizzle schema
 │   └── index.ts      # createDb() 工厂函数，WAL 模式，建表
@@ -94,8 +89,7 @@ mini-wx/              # 微信原生 TS 小程序 MVP
 skills/linka/         # Linka Skill：绑定、画像维护和自更新脚本
 
 test/
-├── helpers.ts        # 测试工具：createTestApp()、REST helper
-├── events.test.ts    # 活动 legacy REST API 测试
+├── helpers.ts        # 测试工具：createTestApp()、测试数据 helper
 ├── agent-bindings.test.ts # Agent 绑定 REST API 测试
 ├── direct-links.test.ts # 私聊建联 REST API 测试
 └── e2e.test.ts       # 端到端流程测试
@@ -105,7 +99,7 @@ test/
 
 ```sql
 users {
-  id           TEXT PK     -- UUID，也是 user_token（跨活动持久身份）
+  id           TEXT PK     -- 活动 MVP 遗留用户 ID
   name         TEXT
   contact_info TEXT        -- 联系方式（如 "微信: hugo_ai"）
   created_at   TEXT
@@ -199,18 +193,17 @@ wechat_profile_preferences {
 }
 ```
 
-**身份机制**: 用户首次加入活动时获得 `user_token`（即 users.id），Agent 记住此 token，后续跨活动复用。重复加入同一活动会 upsert 更新画像和联系方式。
+`users`、`events`、`agents` 是活动 MVP 遗留表，仅用于旧邀请页、邀请卡片和统计兼容。当前产品身份以 `wechat_users`、`agent_bindings` 和 `agent_token` 为主。
 
-## 活动 Legacy REST API
+## 已退役活动 API
 
-### POST /api/events
-主办方创建活动，返回 `event_id` + `invite_code` + `organizer_token`。必填 `organizer_name` / `organizer_profile` / `organizer_contact`——主办方自动作为首个 Agent 加入活动。
+以下接口已移除并应返回 404：
 
-### POST /api/events/join
-参会者通过邀请码加入活动。输入：邀请码、用户名、画像、联系方式、可选 user_token。支持 upsert（重复加入更新画像）。
+- `POST /api/events`
+- `POST /api/events/join`
+- `GET /api/events/:event_id/attendees`
 
-### GET /api/events/:event_id/attendees
-获取活动所有参会者的画像和联系方式。Agent 基于用户上下文做推荐排序。
+后续多人场景不再沿用“活动邀请码加入”，改按微信群聊加入重新设计。
 
 ## mini-wx 绑定 API
 
@@ -347,14 +340,14 @@ node skills/linka/scripts/update-skill.mjs
 
 ## 项目状态
 
-活动人脉 MVP 已完成并上线，MCP 协议层已退役，活动 legacy 能力已迁移到 REST API。mini-wx 私聊 Agent 绑定、真实微信登录、私聊双方建联、Skill 画像更新和 Skill 自更新 MVP 已完成。当前自动化测试覆盖活动 legacy REST、绑定、微信登录、建联、画像更新、Skill 更新和 E2E 核心路径。
+活动人脉 MVP 已完成验证并退役，MCP 协议层和活动 REST API 均已移除。mini-wx 私聊 Agent 绑定、真实微信登录、私聊双方建联、Skill 画像更新和 Skill 自更新 MVP 已完成。当前自动化测试覆盖绑定、微信登录、建联、画像更新、Skill 更新和 E2E 核心路径。
 
 完成的工作：
 - [x] 项目初始化（TypeScript, pnpm, vitest）
 - [x] 数据库 & Schema（SQLite + Drizzle, WAL 模式）
-- [x] 活动 legacy REST API（创建活动、加入活动、获取参会者）
+- [x] 活动 REST API 退役（后续由微信群聊加入替代）
 - [x] 代码可测试性重构（createApp/createDb 工厂函数）
-- [x] 自动化测试（48 个测试，覆盖活动 REST、绑定、微信登录、建联、画像更新、Skill 更新和 E2E）
+- [x] 自动化测试（30 个测试，覆盖绑定、微信登录、建联、画像更新、Skill 更新和 E2E）
 - [x] 阿里云部署（systemd 服务）
 - [x] mini-wx 私聊 Agent 绑定 REST API
 - [x] mini-wx 私聊双方建联 REST API

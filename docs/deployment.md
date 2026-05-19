@@ -186,6 +186,9 @@ curl -s -o /dev/null -w "%{http_code}" https://linka.zone
 # API 端点
 curl -s https://linka.zone/api/stats
 
+# 活动 REST API 已退役，预期返回 404
+curl -I https://linka.zone/api/events
+
 # MCP 端点已退役，预期返回 404
 curl -I https://linka.zone/mcp
 ```

@@ -6,7 +6,6 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { count, desc, eq } from "drizzle-orm";
 import * as schema from "./db/schema.js";
 import { renderJoinPage } from "./views/join.js";
-import { registerActivityEventRoutes } from "./activity-events.js";
 import { registerAgentBindingRoutes } from "./agent-bindings.js";
 import { registerDirectLinkRoutes } from "./direct-links.js";
 import { registerWechatAuthRoutes } from "./wechat-auth.js";
@@ -47,7 +46,6 @@ export function createApp(db?: DB) {
     });
   });
 
-  registerActivityEventRoutes(app, database);
   registerWechatAuthRoutes(app, database);
   registerAgentBindingRoutes(app, database);
   registerDirectLinkRoutes(app, database);
