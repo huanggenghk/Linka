@@ -2,39 +2,48 @@
 
 ## 项目愿景
 
-Linka 是一个 AI Agent 驱动的线下活动社交网络平台。通过 MCP 协议，让参会者的 AI 助手（Codex、飞书 aily 等）具备活动社交能力：自动匹配人脉、跨活动搜索联系人、持续维护社交链接。
+Linka 是微信关系链上的 Agent 社交链接层。用户在小程序里绑定自己的 AI 助手，随后通过微信私聊分享和对方建立 Agent 社交边；后续扩展到微信群聊里的连接网络。
 
-核心价值：让每场活动都变成人脉引擎。参会者不用挨个交流就能找到最匹配的人，组织者能自动获得参与者画像分析报告。
+核心价值：让用户的 AI 助手接管微信里的社交链接，持续维护画像、关系边和后续连接机会。
 
 ## 工程架构
 
 ```
-用户 AI 助手 → MCP 协议 → Hono 后端 (port 3000) → SQLite (Drizzle ORM)
-                                ↑
-浏览器 → Nginx → 静态前端 (React/Vite)
+微信小程序 / Linka Skill → HTTPS REST API → Hono 后端 → SQLite (Drizzle ORM)
+                                      ↑
+                          Nginx TLS 反向代理
 ```
 
 ### 技术栈
-- **后端**: Hono + TypeScript, MCP SDK, Drizzle ORM + SQLite
+- **后端**: Hono + TypeScript, Drizzle ORM + SQLite
 - **前端**: React 19 + Vite 8, 纯 CSS (无框架)
+- **小程序**: 微信原生 TS
 - **部署**: 阿里云 ECS (123.56.163.63 / linka.zone), Nginx 反向代理, systemd, Let's Encrypt SSL
 
 ### 目录结构
-- `src/` — 后端源码 (index.ts 入口, app.ts 路由+MCP, db/ 数据库, mcp/ 工具定义)
+- `src/` — 后端源码 (index.ts 入口, app.ts 路由工厂, db/ 数据库)
+- `mini-wx/` — 微信原生 TS 小程序
+- `skills/linka/` — Linka Skill：绑定、画像维护、自更新脚本
 - `web/src/` — 前端源码 (components/ 下各页面组件)
 - `dist/` — 后端编译输出
 - `web/dist/` — 前端构建输出
 - `docs/deployment.md` — 部署文档
 
 ### 数据模型
-- **users**: 用户 (name, contact_info)
-- **events**: 活动 (name, description, location, date, invite_code)
-- **agents**: Agent 画像 (event_id, user_id, profile), event+user 唯一索引
+- **wechat_users**: 微信小程序用户身份
+- **wechat_login_sessions**: 小程序登录态
+- **binding_sessions**: 一次性 Agent 绑定码
+- **agent_bindings**: 微信用户与 Agent 的绑定关系和 token
+- **direct_shares / direct_edges**: 私聊分享建联和关系边
+- **wechat_user_profiles / wechat_profile_preferences**: 用户画像与自动总结偏好
 
 ### 常用命令
-- 后端开发: `npm run dev` / 构建: `npm run build`
+- 后端开发: `pnpm dev` / 构建: `pnpm build`
 - 前端开发: `cd web && pnpm dev` / 构建: `cd web && npx vite build`
-- 数据库迁移: `npm run db:push`
+- 测试: `pnpm test` / 小程序类型检查: `pnpm mini:check`
+- 测试环境部署: `pnpm deploy:test`
+- 生产环境部署: `pnpm deploy:prod`（只能在 `main` 执行）
+- 数据库迁移: `pnpm db:push`
 - 部署参考: `docs/deployment.md`
 
 ## 语言
@@ -50,6 +59,21 @@ Linka 是一个 AI Agent 驱动的线下活动社交网络平台。通过 MCP �
 - 如果该方案影响协作规则，同步更新 `CLAUDE.md`。
 - 完成文档同步后，只 stage 本次相关文件，提交并推送当前分支。
 - 工作区若存在无关未跟踪文件或他人改动，不要自动纳入提交。
+
+## 环境与发布流程（强制）
+
+这是项目级关键流程，默认执行：
+
+- 功能分支只能部署到测试环境，禁止直发生产。
+- 生产环境只能从 `main` 部署。
+- 测试环境：`https://linka.zone/test-api` → `linka-test.service` → `/root/Linka-test` → `/var/lib/linka-test/linka-test.db`。
+- 生产环境：`https://linka.zone` → `linka.service` → `/root/Linka` → `/var/lib/linka/linka.db`。
+- 标准顺序：功能分支开发 → 更新文档 → `pnpm build` → `pnpm mini:check` → `pnpm test` → `pnpm deploy:test` → CEO 验证 → 合并 `main` → `pnpm deploy:prod`。
+- 小程序测试环境验证时，把小程序 API 地址设为 `https://linka.zone/test-api`。
+- 任何删表、删除线上 API、token 失效、登录/绑定语义变化，都必须先写方案文档、测试环境验证、生产数据库备份，再部署生产。
+- 不允许把未提交、未跟踪、本地 IDE 配置或小程序私有配置带入部署。
+
+详见 `docs/superpowers/specs/2026-05-20-release-environment-flow-design.md` 和 `docs/deployment.md`。
 
 ## Skill routing
 

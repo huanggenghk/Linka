@@ -253,12 +253,26 @@ node dist/index.js
 
 当前部署在阿里云 ECS（华北2 北京），通过 Nginx + Let's Encrypt 提供 HTTPS：
 
-- **健康检查**: `https://linka.zone/health`
-- **API 地址**: `https://linka.zone/api`
-- **架构**: 用户 → Nginx (443, TLS 终结) → Hono (127.0.0.1:3000)
-- **服务管理**: systemd（`linka.service`），开机自启，崩溃自动重启
+- **生产健康检查**: `https://linka.zone/health`
+- **生产 API 地址**: `https://linka.zone/api`
+- **测试健康检查**: `https://linka.zone/test-api/health`
+- **测试 API 地址**: `https://linka.zone/test-api/api`
+- **生产架构**: 用户 → Nginx (443, TLS 终结) → Hono (127.0.0.1:3000)
+- **测试架构**: 用户 → Nginx `/test-api` → Hono (127.0.0.1:3001)
+- **服务管理**: systemd（生产 `linka.service`，测试 `linka-test.service`）
 
 详细部署步骤见 [docs/deployment.md](./docs/deployment.md)。
+
+### 发布规则
+
+后续默认执行开发-测试-生产隔离流程：
+
+1. 功能分支只部署测试环境：`pnpm deploy:test`。
+2. 小程序测试时把 API 地址设为 `https://linka.zone/test-api`。
+3. CEO 确认后合并 `main`。
+4. 生产只允许从干净 `main` 部署：`pnpm deploy:prod`。
+
+完整流程见 [开发-测试-生产发布流程](./docs/superpowers/specs/2026-05-20-release-environment-flow-design.md)。
 
 ### 服务器信息
 
@@ -269,6 +283,8 @@ node dist/index.js
 - 配置: 2C2G, 40G ESSD, 3M 带宽
 - 后端代码路径: `/root/Linka/`
 - DB 路径: `/var/lib/linka/linka.db`（与代码目录物理隔离，部署流程碰不到）
+- 测试后端代码路径: `/root/Linka-test/`
+- 测试 DB 路径: `/var/lib/linka-test/linka-test.db`
 - 前端静态文件: `/var/www/linka/`
 
 完整的部署流程、Nginx 配置、SSL 证书管理见 [docs/deployment.md](./docs/deployment.md)。
@@ -322,6 +338,7 @@ node skills/linka/scripts/update-skill.mjs
 - [x] 代码可测试性重构（createApp/createDb 工厂函数）
 - [x] 自动化测试（24 个测试，覆盖绑定、微信登录、建联、画像更新、Skill 更新和 E2E）
 - [x] 阿里云部署（systemd 服务）
+- [x] 测试环境与开发-测试-生产发布流程
 - [x] mini-wx 私聊 Agent 绑定 REST API
 - [x] mini-wx 私聊双方建联 REST API
 - [x] mini-wx 真实微信登录

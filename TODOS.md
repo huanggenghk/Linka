@@ -7,8 +7,8 @@
 - **描述**: 将 Linka 从“活动人脉工具”升级为微信关系链上的 Agent 社交链接层。小程序作为微信前台入口，Agent 作为后台维护者；私聊建立一条 Agent-to-Agent 社交边，群聊形成一个由多 Agent 维护的社交网络。
 - **核心动作**: 让我的 AI 助手接管这里的社交链接。
 - **绑定方案**: 小程序生成一次性绑定码，Linka Skill 调 REST API 认领绑定。
-- **当前 MVP**: ✅ 真实微信登录已实现；✅ 私聊 Agent 绑定闭环已实现；✅ 私聊双方建联 MVP 已实现；✅ Skill 画像更新已实现；✅ Skill 更新机制已实现；✅ MCP 协议层已移除；✅ 活动兼容层已彻底移除，后续由微信群聊加入替代；暂不做群聊网络。
-- **文档**: `docs/superpowers/specs/2026-05-19-wechat-agent-social-links-design.md`、`docs/superpowers/specs/2026-05-19-skill-api-agent-binding-design.md`、`docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md`、`docs/superpowers/specs/2026-05-19-direct-link-mvp-design.md`、`docs/superpowers/specs/2026-05-19-wechat-real-login-design.md`、`docs/superpowers/specs/2026-05-19-agent-profile-update-skill-design.md`、`docs/superpowers/specs/2026-05-19-linka-skill-update-mechanism-design.md`、`docs/superpowers/specs/2026-05-19-remove-mcp-protocol-design.md`、`docs/superpowers/specs/2026-05-20-remove-activity-rest-api-design.md`
+- **当前 MVP**: ✅ 真实微信登录已实现；✅ 私聊 Agent 绑定闭环已实现；✅ 私聊双方建联 MVP 已实现；✅ Skill 画像更新已实现；✅ Skill 更新机制已实现；✅ MCP 协议层已移除；✅ 活动兼容层已彻底移除；✅ 测试环境和开发-测试-生产发布流程已建立；后续由微信群聊加入替代活动场景，暂不做群聊网络。
+- **文档**: `docs/superpowers/specs/2026-05-19-wechat-agent-social-links-design.md`、`docs/superpowers/specs/2026-05-19-skill-api-agent-binding-design.md`、`docs/superpowers/specs/2026-05-19-private-agent-binding-mvp-design.md`、`docs/superpowers/specs/2026-05-19-direct-link-mvp-design.md`、`docs/superpowers/specs/2026-05-19-wechat-real-login-design.md`、`docs/superpowers/specs/2026-05-19-agent-profile-update-skill-design.md`、`docs/superpowers/specs/2026-05-19-linka-skill-update-mechanism-design.md`、`docs/superpowers/specs/2026-05-19-remove-mcp-protocol-design.md`、`docs/superpowers/specs/2026-05-20-remove-activity-rest-api-design.md`、`docs/superpowers/specs/2026-05-20-release-environment-flow-design.md`
 - **依赖**: 微信小程序入口、一次性绑定码、Linka Skill、用户身份和授权模型
 
 ### ~~私聊双方建联~~ ✅ 已完成
@@ -56,6 +56,12 @@
 - **来源**: codex review
 - **描述**: ~~本地 + tunnel 不适合生产。~~ 已部署到阿里云 ECS（华北2 北京），systemd 管理。
 - **完成时间**: 2026-04-12
+
+### ~~测试环境与发布流程~~ ✅ 已完成
+- **来源**: CEO 流程纠偏
+- **描述**: 建立 `linka-test.service` 测试后端、独立测试数据库和 `https://linka.zone/test-api` 入口；生产部署强制只允许从 `main` 执行，功能分支只能部署测试环境。
+- **完成时间**: 2026-05-20
+- **文档**: `docs/superpowers/specs/2026-05-20-release-environment-flow-design.md`
 
 ## P2 - 中优先级
 
