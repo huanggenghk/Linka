@@ -7,3 +7,4 @@ dist/
 .superpowers/
 .claude/
 .DS_Store
+mini-wx/project.private.config.json
