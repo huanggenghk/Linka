@@ -932,6 +932,17 @@ body {
   color: var(--text-muted);
 }
 
+.footer-icp {
+  margin-left: 12px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-icp:hover {
+  color: var(--amber);
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 768px) {
   .hero {
